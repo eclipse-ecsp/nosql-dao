@@ -92,7 +92,7 @@
 		<spring-boot-starter>3.3.3</spring-boot-starter>
         <checkstyle.version>10.13.0</checkstyle.version>
         <maven.checkstyle.version>3.3.1</maven.checkstyle.version>
-        <checkstyle.config.location>${project.basedir}/harman_checks.xml</checkstyle.config.location>
+        <checkstyle.config.location>${project.basedir}/checkstyle.xml</checkstyle.config.location>
         <checkstyle.suppressions.location>${project.basedir}/checkstyle-suppressions.xml</checkstyle.suppressions.location>
         <license-tool-plugin.version>1.1.0</license-tool-plugin.version>
         <install-plugin.version>3.1.1</install-plugin.version>
