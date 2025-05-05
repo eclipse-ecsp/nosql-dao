@@ -42,7 +42,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.eclipse.ecsp</groupId>
 	<artifactId>nosql-dao</artifactId>
-	<version>1.2-SNAPSHOT</version>
+	<version>1.1.1</version>
 	<packaging>jar</packaging>
 
 	<name>NoSQL DAO</name>
@@ -84,7 +84,7 @@
         <java.version>17</java.version>
 	    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.13.2</junit.version>
-        <utils.version>1.1.0</utils.version>
+        <utils.version>1.1.1</utils.version>
         <morphia.version>2.2.3</morphia.version>
         <embedded.mongo.version>3.4.3</embedded.mongo.version>
         <maven.surefire.version>2.18.1</maven.surefire.version>
