@@ -59,6 +59,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Map;
 
@@ -70,6 +71,7 @@ import static org.junit.Assert.assertNotNull;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class, IgniteDAOMongoAdminClient.class })
 @TestPropertySource("/ignite-dao-admin-client.properties")
+@TestContainers
 public class IgniteDAOAdminClientTest {
 
     private static MongodStarter mongodInstance = MongodStarter.getDefaultInstance();
@@ -78,44 +80,11 @@ public class IgniteDAOAdminClientTest {
     @Autowired
     IgniteDAOMongoAdminClient igniteDaoMongoClient;
 
-    /**
-     * Create mongo server.
-     *
-     * @throws Exception the exception
-     */
-    @BeforeClass
-    public static void createMongoServer() throws Exception {
-        MongodConfig mongodConfig = MongodConfig.builder().version(Version.Main.V4_4)
-                .net(new Net("localhost", NumericConstants.MONGO_HOST, Network.localhostIsIPv6()))
-                .build();
-        mongodExecutor = mongodInstance.prepare(mongodConfig);
-        mongodExecutor.start();
-        createMongoAdminUser("admin50", "password0");
-    }
-
-    private static void createMongoAdminUser(String user, String password) {
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:" + NumericConstants.MONGO_HOST)) {
-            Map<String, Object> cmdArgs = new BasicDBObject();
-            cmdArgs.put("createUser", user);
-            cmdArgs.put("pwd", password);
-            String[] roles = { "readWrite" };
-            cmdArgs.put("roles", roles);
-            BasicDBObject cmd = new BasicDBObject(cmdArgs);
-            MongoDatabase adminDatabase = mongoClient.getDatabase("admin");
-            adminDatabase.runCommand(cmd);
-        }
-    }
-
     @Test
     public void testMongoAdminClient() {
         mongoClient = igniteDaoMongoClient.getAdminClient();
         MongoDatabase adminDatabase = mongoClient.getDatabase("admin");
         assertNotNull(adminDatabase.listCollections().first());
     }
-
-    @After
-    public void tearUpMongoServer() {
-        mongoClient.close();
-        mongodExecutor.stop();
-    }
+    
 }
