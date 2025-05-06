@@ -59,6 +59,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Map;
@@ -74,11 +76,38 @@ import static org.junit.Assert.assertNotNull;
 @Testcontainers
 public class IgniteDAOAdminClientTest {
 
-    private static MongodStarter mongodInstance = MongodStarter.getDefaultInstance();
-    private static MongodExecutable mongodExecutor;
-    private static MongoClient mongoClient;
     @Autowired
     IgniteDAOMongoAdminClient igniteDaoMongoClient;
+    
+    @Container
+    private static MongoDBContainer mongoDbContainer = new MongoDBContainer("mongo:6.0.13");
+    
+    private static MongoClient mongoClient;
+
+    /**
+     * Create mongo server.
+     *
+     * @throws Exception the exception
+     */
+    @BeforeClass
+    public static void createMongoServer() throws Exception {
+        mongoDbContainer.start();
+        AbstractIgniteDAOMongoConfig.overridingPort = mongoDbContainer.getFirstMappedPort();
+        createMongoAdminUser("admin50", "password0");
+    }
+
+    private static void createMongoAdminUser(String user, String password) {
+        try (MongoClient mongoClient = MongoClients.create(mongoDbContainer.getConnectionString())) {
+            Map<String, Object> commandArguments = new BasicDBObject();
+            commandArguments.put("createUser", user);
+            commandArguments.put("pwd", password);
+            String[] roles = { "readWrite" };
+            commandArguments.put("roles", roles);
+            MongoDatabase adminDatabase = mongoClient.getDatabase("admin");
+            BasicDBObject command = new BasicDBObject(commandArguments);
+            adminDatabase.runCommand(command);
+        }
+    }
 
     @Test
     public void testMongoAdminClient() {
@@ -86,5 +115,15 @@ public class IgniteDAOAdminClientTest {
         MongoDatabase adminDatabase = mongoClient.getDatabase("admin");
         assertNotNull(adminDatabase.listCollections().first());
     }
-    
+
+    /**
+     * Tear up mongo server.
+     */
+    @After
+    public void tearUpMongoServer() {
+        mongoClient.close();
+        if (mongoDbContainer.isCreated()) {
+            mongoDbContainer.stop();
+        }
+    }
 }
