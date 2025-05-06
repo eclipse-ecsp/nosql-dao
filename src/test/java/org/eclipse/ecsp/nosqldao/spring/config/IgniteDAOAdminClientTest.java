@@ -71,7 +71,7 @@ import static org.junit.Assert.assertNotNull;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class, IgniteDAOMongoAdminClient.class })
 @TestPropertySource("/ignite-dao-admin-client.properties")
-@TestContainers
+@Testcontainers
 public class IgniteDAOAdminClientTest {
 
     private static MongodStarter mongodInstance = MongodStarter.getDefaultInstance();
