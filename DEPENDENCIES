@@ -4,6 +4,9 @@ maven/mavencentral/com.fasterxml.jackson.core/jackson-annotations/2.15.3, Apache
 maven/mavencentral/com.fasterxml.jackson.core/jackson-core/2.15.3, , approved, #15194
 maven/mavencentral/com.fasterxml.jackson.core/jackson-databind/2.15.3, Apache-2.0, approved, #15199
 maven/mavencentral/com.fasterxml.jackson.datatype/jackson-datatype-jsr310/2.15.3, Apache-2.0, approved, #15189
+maven/mavencentral/com.github.docker-java/docker-java-api/3.3.0, Apache-2.0, approved, #10346
+maven/mavencentral/com.github.docker-java/docker-java-transport-zerodep/3.3.0, Apache-2.0 AND (Apache-2.0 AND BSD-3-Clause), approved, #7946
+maven/mavencentral/com.github.docker-java/docker-java-transport/3.3.0, Apache-2.0, approved, #7942
 maven/mavencentral/com.github.spotbugs/spotbugs-annotations/3.1.9, LGPL-2.1-or-later, approved, #20049
 maven/mavencentral/com.google.code.findbugs/jsr305/3.0.2, Apache-2.0 and CC-BY-2.5, approved, #15220
 maven/mavencentral/com.google.errorprone/error_prone_annotations/2.26.1, Apache-2.0, approved, #13657
@@ -50,6 +53,7 @@ maven/mavencentral/org.mongodb/mongodb-driver-sync/4.5.1, Apache-2.0, approved, 
 maven/mavencentral/org.objenesis/objenesis/3.2, Apache-2.0, approved, clearlydefined
 maven/mavencentral/org.reactivestreams/reactive-streams/1.0.3, CC0-1.0, approved, CQ16332
 maven/mavencentral/org.reflections/reflections/0.9.11, MIT, approved, CQ16665
+maven/mavencentral/org.rnorth.duct-tape/duct-tape/1.0.8, MIT, approved, clearlydefined
 maven/mavencentral/org.slf4j/slf4j-api/2.0.13, MIT, approved, #5915
 maven/mavencentral/org.springframework.boot/spring-boot-autoconfigure/3.3.3, Apache-2.0, approved, clearlydefined
 maven/mavencentral/org.springframework.boot/spring-boot-starter-aop/3.3.3, Apache-2.0, approved, #16896
@@ -62,4 +66,7 @@ maven/mavencentral/org.springframework/spring-core/6.1.14, Apache-2.0 AND BSD-3-
 maven/mavencentral/org.springframework/spring-expression/6.1.14, Apache-2.0, approved, #15264
 maven/mavencentral/org.springframework/spring-jcl/6.1.14, Apache-2.0, approved, #15266
 maven/mavencentral/org.springframework/spring-test/6.1.14, Apache-2.0, approved, #15265
+maven/mavencentral/org.testcontainers/junit-jupiter/1.18.3, MIT, approved, #7941
+maven/mavencentral/org.testcontainers/mongodb/1.18.3, MIT, approved, clearlydefined
+maven/mavencentral/org.testcontainers/testcontainers/1.18.3, MIT, approved, #7938
 maven/mavencentral/org.yaml/snakeyaml/2.0, Apache-2.0 AND (Apache-2.0 OR BSD-3-Clause OR EPL-1.0 OR GPL-2.0-or-later OR LGPL-2.1-or-later), approved, #7275

@@ -61,6 +61,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -70,6 +71,7 @@ import java.util.Properties;
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class,
     TestMongoDiagnosticConfig.class })
 @TestPropertySource("/ignite-dao-diagnostic.properties")
+@Testcontainers
 public class TestMongoDiagnosticReporter {
 
     @ClassRule

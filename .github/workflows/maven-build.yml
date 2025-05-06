@@ -4,14 +4,14 @@ name: Maven Packaging and Sonar Analysis
 
 on:
   push:
-    branches: [ "main" ]
+    branches: '**'
   pull_request:
-    branches: [ "main" ]
+    branches: '**'
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -45,7 +45,7 @@ jobs:
     # No need to run if we cannot use the sonar token
     if: >-
       needs.check_sonar_configured.outputs.sonar_configured == 'true'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write

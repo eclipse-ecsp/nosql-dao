@@ -59,6 +59,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.Map;
 
@@ -70,13 +73,16 @@ import static org.junit.Assert.assertNotNull;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class, IgniteDAOMongoAdminClient.class })
 @TestPropertySource("/ignite-dao-admin-client.properties")
+@Testcontainers
 public class IgniteDAOAdminClientTest {
 
-    private static MongodStarter mongodInstance = MongodStarter.getDefaultInstance();
-    private static MongodExecutable mongodExecutor;
-    private static MongoClient mongoClient;
     @Autowired
     IgniteDAOMongoAdminClient igniteDaoMongoClient;
+    
+    @Container
+    private static MongoDBContainer mongoDbContainer = new MongoDBContainer("mongo:6.0.13");
+    
+    private static MongoClient mongoClient;
 
     /**
      * Create mongo server.
@@ -85,24 +91,21 @@ public class IgniteDAOAdminClientTest {
      */
     @BeforeClass
     public static void createMongoServer() throws Exception {
-        MongodConfig mongodConfig = MongodConfig.builder().version(Version.Main.V4_4)
-                .net(new Net("localhost", NumericConstants.MONGO_HOST, Network.localhostIsIPv6()))
-                .build();
-        mongodExecutor = mongodInstance.prepare(mongodConfig);
-        mongodExecutor.start();
+        mongoDbContainer.start();
+        AbstractIgniteDAOMongoConfig.overridingPort = mongoDbContainer.getFirstMappedPort();
         createMongoAdminUser("admin50", "password0");
     }
 
     private static void createMongoAdminUser(String user, String password) {
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:" + NumericConstants.MONGO_HOST)) {
-            Map<String, Object> cmdArgs = new BasicDBObject();
-            cmdArgs.put("createUser", user);
-            cmdArgs.put("pwd", password);
+        try (MongoClient mongoClient = MongoClients.create(mongoDbContainer.getConnectionString())) {
+            Map<String, Object> commandArguments = new BasicDBObject();
+            commandArguments.put("createUser", user);
+            commandArguments.put("pwd", password);
             String[] roles = { "readWrite" };
-            cmdArgs.put("roles", roles);
-            BasicDBObject cmd = new BasicDBObject(cmdArgs);
+            commandArguments.put("roles", roles);
             MongoDatabase adminDatabase = mongoClient.getDatabase("admin");
-            adminDatabase.runCommand(cmd);
+            BasicDBObject command = new BasicDBObject(commandArguments);
+            adminDatabase.runCommand(command);
         }
     }
 
@@ -113,9 +116,14 @@ public class IgniteDAOAdminClientTest {
         assertNotNull(adminDatabase.listCollections().first());
     }
 
+    /**
+     * Tear up mongo server.
+     */
     @After
     public void tearUpMongoServer() {
         mongoClient.close();
-        mongodExecutor.stop();
+        if (mongoDbContainer.isCreated()) {
+            mongoDbContainer.stop();
+        }
     }
 }
