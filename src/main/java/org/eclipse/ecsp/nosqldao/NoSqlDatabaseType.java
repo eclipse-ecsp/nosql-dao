@@ -53,8 +53,11 @@ public enum NoSqlDatabaseType {
     /**
      * CosmosDB database type.
      */
-    COSMOSDB("cosmosDB");
-
+    COSMOSDB("cosmosDB"),
+    /**
+     * DocumentDB database type.
+     */
+    DocumentDB("documentDB");
     /**
      * The database type.
      */
@@ -71,7 +74,7 @@ public enum NoSqlDatabaseType {
 
     /**
      * Method to get enum of instance NoSqlDatabaseType.
-     *                                                    
+     *
      * @param dbType : dbType
      * @return NoSqlDatabaseType
      */
@@ -84,12 +87,15 @@ public enum NoSqlDatabaseType {
             case "cosmosDB":
                 dbTypeEnum = NoSqlDatabaseType.COSMOSDB;
                 break;
+            case "documentDB":
+                dbTypeEnum = NoSqlDatabaseType.DocumentDB;
+                break;
             default:
                 throw new UnsupportedDatabaseTypeException("Unsupported database type : " + dbType);
         }
         return dbTypeEnum;
     }
-    
+
     @Override
     public String toString() {
         return databaseType;

@@ -212,6 +212,15 @@ public abstract class PropertyNames {
     public static final String COSMOSDB_NAME = "cosmosdb.name";
 
     /**
+     * DocumentDB connection string property name.
+     */
+    public static final String DOCUMENT_DB_CONNECTION_STRING = "document.db.connection.string"; ;
+
+    /**
+     * NoSQL database type for DocumentDB property name.
+     */
+    public static final String DOCUMENTDB_NAME = "documentdb.name";
+    /**
      * Private constructor to prevent instantiation.
      */
     private PropertyNames() {

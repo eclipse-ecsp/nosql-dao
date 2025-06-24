@@ -257,6 +257,15 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     protected String cosmosDbConnectionString;
 
     /**
+     * The connection string for DocumentDB.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENT_DB_CONNECTION_STRING + ":}")
+    protected String documentDbConnectionString;
+
+    @Value("${" + PropertyNames.DOCUMENTDB_NAME + ":}")
+    protected String documentDbName;
+    /**
      * The name of the CosmosDB database.
      * The default value is empty.
      */
@@ -338,19 +347,19 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
         healthy = flag;
     }
 
-    /** 
-     * Setter for reading property and assigning appropriate enumeration for database type. 
+    /**
+     * Setter for reading property and assigning appropriate enumeration for database type.
      * @param noSqlDatabaseTypeStr : String
      */
     @Autowired
-    public void setNoSqlDatabaseType(@Value("${" + PropertyNames.NO_SQL_DATABASE_TYPE + ":}") 
+    public void setNoSqlDatabaseType(@Value("${" + PropertyNames.NO_SQL_DATABASE_TYPE + ":}")
             String noSqlDatabaseTypeStr) {
         if (StringUtils.isBlank(noSqlDatabaseTypeStr)) {
             noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
         } else {
             noSqlDatabaseType = NoSqlDatabaseType.valueOf(noSqlDatabaseTypeStr.toUpperCase());
         }
-        LOGGER.info("Database selected via property " + PropertyNames.NO_SQL_DATABASE_TYPE + ":" 
+        LOGGER.info("Database selected via property " + PropertyNames.NO_SQL_DATABASE_TYPE + ":"
                 + noSqlDatabaseTypeStr + " is : " + noSqlDatabaseType.name());
     }
 
@@ -388,7 +397,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
                 codecRegistry = getCodecRegistryFromProp();
             }
 
-            //MapperOptions can be set via methods or fields. In 2.0 version of morphia only one can be used, 
+            //MapperOptions can be set via methods or fields. In 2.0 version of morphia only one can be used,
             //in future releases an option of using both options will be provided
             LOGGER.info("Building Morphia mapping options. Property discovery enabled via FIELDS, "
                     + "with discriminator key as : {}", Constants.DISCRIMINATOR_KEY);
@@ -408,14 +417,14 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             this.mapperOptions = mapperOptionsBuilder.build();
             datastore = getDatastore();
             mapPackagesToDatastore(datastore);
-            
+
             long startTime = System.currentTimeMillis();
             // From morphia 2.0 UTC will be available by default
-            LOGGER.info("Morphia DataStorage : {}", 
+            LOGGER.info("Morphia DataStorage : {}",
                     datastore.getMapper().getOptions().getDateStorage().getZone().getId());
             long endTimeMorpia = System.currentTimeMillis();
             LOGGER.info("Connection time taken from Morphia in millisecs : {}", (endTimeMorpia - startTime));
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException 
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
                 | InvocationTargetException | NoSuchMethodException | RuntimeException e) {
             if (null != mongoClient) {
                 mongoClient.close();
@@ -435,15 +444,30 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     protected void validate() {
 
         List<String> inValidConfAttributes = new ArrayList<>();
-        
+
         if (noSqlDatabaseType == NoSqlDatabaseType.MONGODB) {
             validateMongoDbAttributes(inValidConfAttributes);
         } else if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
             validateCosmosDbAttributes(inValidConfAttributes);
+        } else if (noSqlDatabaseType == NoSqlDatabaseType.DocumentDB) {
+            validateDocumentDbAttributes(inValidConfAttributes);
         }
         if (!inValidConfAttributes.isEmpty()) {
             throw new IllegalArgumentException("Missing connection properties: "
                     + inValidConfAttributes.toString());
+        }
+    }
+
+    /**
+     * Validates the configuration properties for DocumentDB.
+     * @param inValidConfAttributes
+     */
+    private void validateDocumentDbAttributes(List<String> inValidConfAttributes) {
+        if (StringUtils.isBlank(documentDbConnectionString)) {
+            inValidConfAttributes.add(PropertyNames.DOCUMENT_DB_CONNECTION_STRING);
+        }
+        if (StringUtils.isBlank(documentDbName)) {
+            inValidConfAttributes.add(PropertyNames.DOCUMENTDB_NAME);
         }
     }
 
@@ -453,7 +477,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * @param inValidConfAttributes : List of String
      */
     protected void validateCosmosDbAttributes(List<String> inValidConfAttributes) {
-        
+
         if (StringUtils.isBlank(cosmosDbConnectionString)) {
             inValidConfAttributes.add(PropertyNames.COSMOS_DB_CONNECTION_STRING);
         }
@@ -468,7 +492,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * @param inValidConfAttributes : List of String
      */
     protected void validateMongoDbAttributes(List<String> inValidConfAttributes) {
-        
+
         if (StringUtils.isBlank(hosts)) {
             inValidConfAttributes.add("mongodb.hosts");
         }
@@ -623,10 +647,17 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     private MongoClientSettings.Builder getMongoClientBuilder() {
         MongoClientSettings.Builder mongoClientSettingsBuilder = MongoClientSettings.builder();
-        if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
-            applyClientSettingsForCosmosDB(mongoClientSettingsBuilder);
-        } else {
-            applyClientSettingsForMongoDB(mongoClientSettingsBuilder);
+        switch (noSqlDatabaseType) {
+            case COSMOSDB:
+                applyClientSettingsForCosmosDB(mongoClientSettingsBuilder);
+                break;
+            case DocumentDB:
+                applyClientSettingsForDocumentDB(mongoClientSettingsBuilder);
+                break;
+            case MONGODB:
+            default:
+                applyClientSettingsForMongoDB(mongoClientSettingsBuilder);
+                break;
         }
         return mongoClientSettingsBuilder;
     }
@@ -639,7 +670,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     private void applyClientSettingsForCosmosDB(MongoClientSettings.Builder mongoClientSettingsBuilder) {
         ConnectionString connectionString = new ConnectionString(cosmosDbConnectionString);
         mongoClientSettingsBuilder.applyConnectionString(connectionString);
-        LOGGER.info("Mongo client settings applied for CosmosDB"); 
+        LOGGER.info("Mongo client settings applied for CosmosDB");
     }
 
     /**
