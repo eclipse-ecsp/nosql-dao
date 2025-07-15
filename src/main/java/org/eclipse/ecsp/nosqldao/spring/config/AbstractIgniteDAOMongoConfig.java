@@ -449,7 +449,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             validateMongoDbAttributes(inValidConfAttributes);
         } else if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
             validateCosmosDbAttributes(inValidConfAttributes);
-        } else if (noSqlDatabaseType == NoSqlDatabaseType.DocumentDB) {
+        } else if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
             validateDocumentDbAttributes(inValidConfAttributes);
         }
         if (!inValidConfAttributes.isEmpty()) {
@@ -651,7 +651,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             case COSMOSDB:
                 applyClientSettingsForCosmosDB(mongoClientSettingsBuilder);
                 break;
-            case DocumentDB:
+            case DOCUMENTDB:
                 applyClientSettingsForDocumentDB(mongoClientSettingsBuilder);
                 break;
             case MONGODB:
@@ -660,6 +660,17 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
                 break;
         }
         return mongoClientSettingsBuilder;
+    }
+
+    /**
+     * Applies the client settings for DocumentDB.
+     *
+     * @param mongoClientSettingsBuilder
+     */
+    private void applyClientSettingsForDocumentDB(MongoClientSettings.Builder mongoClientSettingsBuilder) {
+        ConnectionString connectionString = new ConnectionString(documentDbConnectionString);
+        mongoClientSettingsBuilder.applyConnectionString(connectionString);
+        LOGGER.info("Mongo client settings applied for DocumentDB");
     }
 
     /**

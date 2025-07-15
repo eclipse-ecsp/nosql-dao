@@ -99,6 +99,9 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
         if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
             dataStoreDbName = cosmosdbName;
         }
+        if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+            dataStoreDbName = documentDbName;
+        }
         AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(mongoClient, 
                 dataStoreDbName, mapperOptions);
         mapPackagesToDatastore(ads);
@@ -174,6 +177,9 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
             String dataStoreDbName = dbName;
             if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
                 dataStoreDbName = cosmosdbName;
+            }
+            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+                dataStoreDbName = documentDbName;
             }
             AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(createMongoClient(),
                     dataStoreDbName, mapperOptions);
