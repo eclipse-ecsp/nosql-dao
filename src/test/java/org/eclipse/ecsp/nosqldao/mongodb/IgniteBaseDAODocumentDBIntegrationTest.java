@@ -33,7 +33,7 @@ public class IgniteBaseDAODocumentDBIntegrationTest {
     @Before
     public void setupEcallDAO() throws IOException {
         Properties daoProperties = new Properties();
-        daoProperties.load(IgniteBaseDAOCosmosDBIntegrationTest.class.getResourceAsStream(
+        daoProperties.load(IgniteBaseDAODocumentDBIntegrationTest.class.getResourceAsStream(
                 "/ignite-dao-documentdb.properties"));
     }
     @Test
