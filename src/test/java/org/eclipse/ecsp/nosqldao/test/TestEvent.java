@@ -55,8 +55,8 @@ import java.util.List;
  * TestEvent class.
  */
 @Entity("testEvents")
-@Indexes(@Index(fields = { @Field("manufacturer"),
-    @Field("model"), @Field("year") }, options = @IndexOptions(unique = true)))
+//@Indexes(@Index(fields = { @Field("manufacturer"),
+  //  @Field("model"), @Field("year") }, options = @IndexOptions(unique = true)))
 public class TestEvent extends AbstractIgniteEvent {
 
     private static final long serialVersionUID = -1785142819686025246L;

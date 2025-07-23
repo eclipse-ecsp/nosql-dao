@@ -62,6 +62,8 @@ import org.eclipse.ecsp.nosqldao.utils.Constants;
 import org.eclipse.ecsp.nosqldao.utils.PropertyNames;
 import org.eclipse.ecsp.utils.logger.IgniteLogger;
 import org.eclipse.ecsp.utils.logger.IgniteLoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -97,6 +99,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * Error message for failed MongoDB connection initialization.
      */
     protected  static final String FAILED_TO_INITIALIZE_MONGO_CONNECTION = "Failed to initialize mongodb connection";
+    private static final Logger log = LoggerFactory.getLogger(AbstractIgniteDAOMongoConfig.class);
 
     /**
      * The health status of the MongoDB connection.
@@ -115,6 +118,12 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     @Value("${mongodb.hosts:}")
     protected String hosts;
+    /**
+     * The DocumentDB hosts to connect to.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_HOST + ":}")
+    protected String host;
 
     /**
      * The port number for the MongoDB connection.
@@ -122,6 +131,12 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     @Value("${mongodb.port:27017}")
     protected int port;
+    /**
+     *  The port number for the MongoDB connection.
+     *  The default value is 27017.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_PORT + ":27017}")
+    protected int ducumentDbPort;
 
     /**
      * The username for MongoDB authentication.
@@ -129,13 +144,24 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     @Value("${mongodb.username:}")
     protected String username;
-
+    /**
+     * The username for Document authentication.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_USERNAME + ":}")
+    protected String uname;
+    /**
+     *The password for Document authentication.
+     *The default value is empty.
+     */
+    @Value("${mongodb.password:}")
+    protected String password;
     /**
      * The password for MongoDB authentication.
      * The default value is empty.
      */
-    @Value("${mongodb.password:}")
-    protected String password;
+    @Value("${" + PropertyNames.DOCUMENTDB_PASSWORD + ":}")
+    protected String pwd;
 
     /**
      * The authentication database for MongoDB.
@@ -260,11 +286,23 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * The connection string for DocumentDB.
      * The default value is empty.
      */
-    @Value("${" + PropertyNames.DOCUMENT_DB_CONNECTION_STRING + ":}")
-    protected String documentDbConnectionString;
+    /*@Value("${" + PropertyNames.DOCUMENT_DB_CONNECTION_STRING + ":}")
+    protected String documentDbConnectionString;*/
 
     @Value("${" + PropertyNames.DOCUMENTDB_NAME + ":}")
     protected String documentDbName;
+
+    @Value("${" + PropertyNames.DOCUMENTDB_TLS_ENABLED + ":}")
+    protected boolean documentDbTlsEnabled;
+
+    @Value("${" + PropertyNames.DOCUMENTDB_AUTH_MECHANISM + ":}")
+    protected String documentDbAuthMechanism;
+
+    @Value("${" + PropertyNames.DOCUMENTDB_RETRY_WRITES + ":}")
+    protected boolean documentDbRetryWrites;
+
+    @Value("${" + PropertyNames.DOCUMENTDB_READ_PREFFRENCE + ":}")
+    protected String documentDbReadPreference;
     /**
      * The name of the CosmosDB database.
      * The default value is empty.
@@ -463,11 +501,20 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * @param inValidConfAttributes
      */
     private void validateDocumentDbAttributes(List<String> inValidConfAttributes) {
-        if (StringUtils.isBlank(documentDbConnectionString)) {
-            inValidConfAttributes.add(PropertyNames.DOCUMENT_DB_CONNECTION_STRING);
+        if (StringUtils.isBlank(host)) {
+            inValidConfAttributes.add("documentdb.host");
+        }
+        if (ducumentDbPort==0) {
+            inValidConfAttributes.add("documentdb.port");
+        }
+        if (StringUtils.isBlank(uname)) {
+            inValidConfAttributes.add("documentdb.username");
+        }
+        if (StringUtils.isBlank(pwd)) {
+            inValidConfAttributes.add("documentdb.password");
         }
         if (StringUtils.isBlank(documentDbName)) {
-            inValidConfAttributes.add(PropertyNames.DOCUMENTDB_NAME);
+            inValidConfAttributes.add("documentdb.name}");
         }
     }
 
@@ -668,10 +715,48 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * @param mongoClientSettingsBuilder
      */
     private void applyClientSettingsForDocumentDB(MongoClientSettings.Builder mongoClientSettingsBuilder) {
+        String documentDbConnectionString = getConnectionStringForDocumentDb();
         ConnectionString connectionString = new ConnectionString(documentDbConnectionString);
         mongoClientSettingsBuilder.applyConnectionString(connectionString);
         LOGGER.info("Mongo client settings applied for DocumentDB");
     }
+
+    /**
+     * returns document db connection string
+     * @return
+     */
+    private String getConnectionStringForDocumentDb() {
+        StringBuilder sb = null;
+        if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+            sb = new StringBuilder("mongodb://");
+            sb.append(uname);
+            sb.append(":");
+            sb.append(pwd);
+            sb.append("@");
+            sb.append(host);
+            sb.append(":");
+            sb.append(ducumentDbPort);
+            sb.append("/");
+            sb.append(documentDbName);
+            sb.append("?");
+            sb.append("tls=");
+            sb.append(documentDbTlsEnabled);
+            if(!documentDbAuthMechanism.isEmpty()) {
+                sb.append("&authenticationMechanism=");
+                sb.append(documentDbAuthMechanism);
+            }
+            sb.append("&retryWrites=");
+            sb.append(documentDbRetryWrites);
+            if(!documentDbReadPreference.isEmpty()) {
+                sb.append("&readpreference=");
+                sb.append(documentDbReadPreference);
+            }
+
+        }
+        LOGGER.info("document db connection string is :"+ sb);
+        return sb != null ? sb.toString() : null;
+    }
+
 
     /**
      * Applies the client settings for CosmosDB.

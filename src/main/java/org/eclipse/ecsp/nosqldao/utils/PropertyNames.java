@@ -216,10 +216,21 @@ public abstract class PropertyNames {
      */
     public static final String DOCUMENT_DB_CONNECTION_STRING = "document.db.connection.string"; ;
 
+
     /**
      * NoSQL database type for DocumentDB property name.
      */
     public static final String DOCUMENTDB_NAME = "documentdb.name";
+    public static final String DOCUMENTDB_TLS_ENABLED = "documentdb.tls.enabled";
+    public static final String DOCUMENTDB_AUTH_MECHANISM = "documentdb.auth.mechanism";
+    public static final String DOCUMENTDB_RETRY_WRITES = "documentdb.retry.writes";
+    public static final String DOCUMENTDB_READ_PREFFRENCE = "documentdb.read.preference";
+    public static final String DOCUMENTDB_PORT= "documentdb.port";
+    public static final String DOCUMENTDB_HOST= "documentdb.host";
+    public static final String DOCUMENTDB_USERNAME= "documentdb.username";
+    public static final String DOCUMENTDB_PASSWORD= "documentdb.password";
+
+
     /**
      * Private constructor to prevent instantiation.
      */
