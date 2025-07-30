@@ -282,23 +282,16 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     @Value("${" + PropertyNames.COSMOS_DB_CONNECTION_STRING + ":}")
     protected String cosmosDbConnectionString;
 
-    /**
-     * The connection string for DocumentDB.
-     * The default value is empty.
-     */
-    /*@Value("${" + PropertyNames.DOCUMENT_DB_CONNECTION_STRING + ":}")
-    protected String documentDbConnectionString;*/
-
     @Value("${" + PropertyNames.DOCUMENTDB_NAME + ":}")
     protected String documentDbName;
 
-    @Value("${" + PropertyNames.DOCUMENTDB_TLS_ENABLED + ":}")
+    @Value("${" + PropertyNames.DOCUMENTDB_TLS_ENABLED + ":false}")
     protected boolean documentDbTlsEnabled;
 
     @Value("${" + PropertyNames.DOCUMENTDB_AUTH_MECHANISM + ":}")
     protected String documentDbAuthMechanism;
 
-    @Value("${" + PropertyNames.DOCUMENTDB_RETRY_WRITES + ":}")
+    @Value("${" + PropertyNames.DOCUMENTDB_RETRY_WRITES + ":false}")
     protected boolean documentDbRetryWrites;
 
     @Value("${" + PropertyNames.DOCUMENTDB_READ_PREFFRENCE + ":}")

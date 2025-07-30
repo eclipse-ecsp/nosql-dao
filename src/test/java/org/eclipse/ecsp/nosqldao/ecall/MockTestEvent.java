@@ -52,7 +52,7 @@ import java.util.List;
 
 /** MockTestEvent class. */
 @Entity()
-//@Indexes(@Index(fields = {@Field(value = "vehicleId"), @Field(value = "sourceDeviceId")}))
+@Indexes(@Index(fields = {@Field(value = "vehicleId"), @Field(value = "sourceDeviceId")}))
 public class MockTestEvent extends AbstractIgniteEvent {
 
     private static final long serialVersionUID = -1785142819686025246L;

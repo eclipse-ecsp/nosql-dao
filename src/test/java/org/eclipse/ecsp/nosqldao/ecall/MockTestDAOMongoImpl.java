@@ -50,7 +50,7 @@ import org.springframework.stereotype.Repository;
 public class MockTestDAOMongoImpl extends IgniteBaseDAOMongoImpl<String, MockTestEvent> {
 
     public String getOverridingCollectionName() {
-        return "customEcall";
+        return "mockTestEvent";
     }
 
 }
