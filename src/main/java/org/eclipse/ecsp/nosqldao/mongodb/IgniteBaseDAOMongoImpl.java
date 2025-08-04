@@ -70,7 +70,17 @@ import org.eclipse.ecsp.diagnostic.DiagnosticData;
 import org.eclipse.ecsp.diagnostic.DiagnosticResult;
 import org.eclipse.ecsp.entities.AuditableIgniteEntity;
 import org.eclipse.ecsp.entities.IgniteEntity;
-import org.eclipse.ecsp.nosqldao.*;
+import org.eclipse.ecsp.nosqldao.IgniteBaseDAO;
+import org.eclipse.ecsp.nosqldao.IgniteCriteria;
+import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
+import org.eclipse.ecsp.nosqldao.IgnitePagingInfoResponse;
+import org.eclipse.ecsp.nosqldao.IgniteQuery;
+import org.eclipse.ecsp.nosqldao.MongoDiagnosticReporterImpl;
+import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
+import org.eclipse.ecsp.nosqldao.Operator;
+import org.eclipse.ecsp.nosqldao.QueryTranslator;
+import org.eclipse.ecsp.nosqldao.Updates;
+import org.eclipse.ecsp.nosqldao.UpdatesTranslator;
 import org.eclipse.ecsp.nosqldao.utils.Constants;
 import org.eclipse.ecsp.nosqldao.utils.MetricsUtil;
 import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
@@ -254,15 +264,17 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         String overridingCollection = getOverridingCollectionName();
 
         if (StringUtils.isEmpty(overridingCollection)) {
-            if(noSqlDatabaseType==NoSqlDatabaseType.DOCUMENTDB && !collectionExists(entityClassName))
+            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB && !collectionExists(entityClassName)) {
                 mongoDatastore.getDatabase().createCollection(entityClassName);
+            }
             mongoDatastore.ensureIndexes(entityClass);
             if (diagnosticMongoReporterEnabled) {
                 collection = mongoDatastore.getMapper().getCollection(entityClass);
             }
         } else {
-            if(noSqlDatabaseType==NoSqlDatabaseType.DOCUMENTDB && !collectionExists(overridingCollection))
+            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB && !collectionExists(overridingCollection)) {
                 mongoDatastore.getDatabase().createCollection(overridingCollection);
+            }
             EntityModel model = mongoDatastore.getMapper().getEntityModel(entityClass);
             IndexHelper indexHelper = new IndexHelper(mongoDatastore.getMapper());
             indexHelper.createIndex(mongoDatastore.getDatabase().getCollection(

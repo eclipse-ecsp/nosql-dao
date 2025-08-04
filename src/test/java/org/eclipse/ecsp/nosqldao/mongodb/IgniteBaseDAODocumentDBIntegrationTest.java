@@ -4,13 +4,17 @@ import com.mongodb.DuplicateKeyException;
 import com.mongodb.MongoWriteException;
 import com.mongodb.ReadPreference;
 import com.mongodb.client.ListIndexesIterable;
-import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import dev.morphia.AdvancedDatastore;
 import org.awaitility.Awaitility;
 import org.bson.Document;
-import org.eclipse.ecsp.nosqldao.*;
+import org.eclipse.ecsp.nosqldao.IgniteCriteria;
+import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
+import org.eclipse.ecsp.nosqldao.IgniteOrderBy;
+import org.eclipse.ecsp.nosqldao.IgnitePagingInfoResponse;
+import org.eclipse.ecsp.nosqldao.IgniteQuery;
+import org.eclipse.ecsp.nosqldao.Operator;
+import org.eclipse.ecsp.nosqldao.Updates;
 import org.eclipse.ecsp.nosqldao.ecall.ECallEvent;
 import org.eclipse.ecsp.nosqldao.ecall.EcallDAO;
 import org.eclipse.ecsp.nosqldao.ecall.TestEntity;
@@ -25,8 +29,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -37,7 +39,14 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -63,12 +72,18 @@ public class IgniteBaseDAODocumentDBIntegrationTest {
 
     @Autowired
     private IgniteDAOMongoConfigWithProps igniteDAOMongoConfigWithProps;
+
+    /**
+     * Method to load properties before executing test cases.
+     * @throws IOException : exception
+     */
     @Before
     public void setupEcallDAO() throws IOException {
         Properties daoProperties = new Properties();
         daoProperties.load(IgniteBaseDAODocumentDBIntegrationTest.class.getResourceAsStream(
                 "/ignite-dao-documentdb.properties"));
     }
+
     @Test
     public void testSave() {
         ECallEvent ecall = new ECallEvent();

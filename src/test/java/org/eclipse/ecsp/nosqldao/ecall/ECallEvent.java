@@ -64,7 +64,7 @@ import java.util.Set;
  * ECallEvent entity class.
  */
 @Entity("ecallEvents")
-@Indexes(@Index(fields = {@Field(value = "vehicleId"),@Field(value = "ecallId"), @Field(value = "sourceDeviceId")}))
+@Indexes(@Index(fields = {@Field(value = "vehicleId"), @Field(value = "ecallId"), @Field(value = "sourceDeviceId")}))
 public class ECallEvent extends AbstractIgniteEvent implements AuditableIgniteEntity {
 
     private static final long serialVersionUID = -1785142819686025246L;

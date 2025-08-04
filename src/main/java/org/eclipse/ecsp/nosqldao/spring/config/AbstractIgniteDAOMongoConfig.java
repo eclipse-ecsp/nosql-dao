@@ -99,7 +99,6 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * Error message for failed MongoDB connection initialization.
      */
     protected  static final String FAILED_TO_INITIALIZE_MONGO_CONNECTION = "Failed to initialize mongodb connection";
-    private static final Logger log = LoggerFactory.getLogger(AbstractIgniteDAOMongoConfig.class);
 
     /**
      * The health status of the MongoDB connection.
@@ -491,13 +490,14 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
 
     /**
      * Validates the configuration properties for DocumentDB.
-     * @param inValidConfAttributes
+     *
+     * @param inValidConfAttributes : List of String
      */
     private void validateDocumentDbAttributes(List<String> inValidConfAttributes) {
         if (StringUtils.isBlank(host)) {
             inValidConfAttributes.add("documentdb.host");
         }
-        if (ducumentDbPort==0) {
+        if (ducumentDbPort == 0) {
             inValidConfAttributes.add("documentdb.port");
         }
         if (StringUtils.isBlank(uname)) {
@@ -704,8 +704,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
 
     /**
      * Applies the client settings for DocumentDB.
-     *
-     * @param mongoClientSettingsBuilder
+     * @param mongoClientSettingsBuilder : MongoClientSettings.Builder instance.
      */
     private void applyClientSettingsForDocumentDB(MongoClientSettings.Builder mongoClientSettingsBuilder) {
         String documentDbConnectionString = getConnectionStringForDocumentDb();
@@ -715,8 +714,8 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     }
 
     /**
-     * returns document db connection string
-     * @return
+     * Constructs the connection string for DocumentDB.
+     * @return : String representing the connection string.
      */
     private String getConnectionStringForDocumentDb() {
         StringBuilder sb = null;
@@ -734,19 +733,19 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             sb.append("?");
             sb.append("tls=");
             sb.append(documentDbTlsEnabled);
-            if(!documentDbAuthMechanism.isEmpty()) {
+            if (!documentDbAuthMechanism.isEmpty()) {
                 sb.append("&authenticationMechanism=");
                 sb.append(documentDbAuthMechanism);
             }
             sb.append("&retryWrites=");
             sb.append(documentDbRetryWrites);
-            if(!documentDbReadPreference.isEmpty()) {
+            if (!documentDbReadPreference.isEmpty()) {
                 sb.append("&readpreference=");
                 sb.append(documentDbReadPreference);
             }
 
         }
-        LOGGER.info("document db connection string is :"+ sb);
+        LOGGER.info("document db connection string is :" + sb);
         return sb != null ? sb.toString() : null;
     }
 
