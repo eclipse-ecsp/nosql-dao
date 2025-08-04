@@ -52,4 +52,5 @@ public class GeoSpatialMockDAOImpl extends IgniteBaseDAOMongoImpl<String, GeoSpa
     public String getOverridingCollectionName() {
         return "geospatilCustomEcall";
     }
+
 }
