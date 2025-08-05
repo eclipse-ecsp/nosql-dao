@@ -73,6 +73,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.eclipse.ecsp.nosqldao.utils.Constants.*;
+
 /**
  * Abstract class for configuring MongoDB settings for NoSQL DAO.
  * This class implements the HealthMonitor interface to provide health monitoring capabilities.
@@ -293,7 +295,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     @Value("${" + PropertyNames.DOCUMENTDB_RETRY_WRITES + ":false}")
     protected boolean documentDbRetryWrites;
 
-    @Value("${" + PropertyNames.DOCUMENTDB_READ_PREFFRENCE + ":}")
+    @Value("${" + PropertyNames.DOCUMENTDB_READ_PREFFRENCE + ":secondaryPreferred}")
     protected String documentDbReadPreference;
     /**
      * The name of the CosmosDB database.
@@ -718,35 +720,21 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * @return : String representing the connection string.
      */
     private String getConnectionStringForDocumentDb() {
-        StringBuilder sb = null;
+        StringBuilder sb = new StringBuilder("mongodb://");
         if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
-            sb = new StringBuilder("mongodb://");
-            sb.append(uname);
-            sb.append(":");
-            sb.append(pwd);
-            sb.append("@");
-            sb.append(host);
-            sb.append(":");
-            sb.append(ducumentDbPort);
-            sb.append("/");
-            sb.append(documentDbName);
-            sb.append("?");
-            sb.append("tls=");
-            sb.append(documentDbTlsEnabled);
+            sb.append(uname).append(COLON).append(pwd).append(AT_THE_RATE).append(host).append(COLON).append(ducumentDbPort).append("/").append(documentDbName)
+            .append(ducumentDbPort).append(FRONT_SLASH).append(documentDbName).append(QUESTION_MARK).append("tls=").append(documentDbTlsEnabled);
             if (!documentDbAuthMechanism.isEmpty()) {
-                sb.append("&authenticationMechanism=");
-                sb.append(documentDbAuthMechanism);
+                sb.append("&authenticationMechanism=").append(documentDbAuthMechanism);
             }
-            sb.append("&retryWrites=");
-            sb.append(documentDbRetryWrites);
+            sb.append("&retryWrites=").append(documentDbRetryWrites);
             if (!documentDbReadPreference.isEmpty()) {
-                sb.append("&readpreference=");
-                sb.append(documentDbReadPreference);
+                sb.append("&readpreference=").append(documentDbReadPreference);
             }
 
         }
         LOGGER.info("document db connection string is :" + sb);
-        return sb != null ? sb.toString() : null;
+        return  sb.toString();
     }
 
 
