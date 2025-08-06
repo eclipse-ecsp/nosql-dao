@@ -209,9 +209,25 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
     protected NoSqlDatabaseType noSqlDatabaseType;
 
     /**
+     * Setter for reading property and assigning appropriate enumeration for database type.
+     * @param noSqlDatabaseTypeStr : String
+     */
+    @Autowired
+    public void setNoSqlDatabaseType(@Value("${" + PropertyNames.NO_SQL_DATABASE_TYPE + ":}")
+                                     String noSqlDatabaseTypeStr) {
+        if (StringUtils.isBlank(noSqlDatabaseTypeStr)) {
+            noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
+        } else {
+            noSqlDatabaseType = NoSqlDatabaseType.valueOf(noSqlDatabaseTypeStr.toUpperCase());
+        }
+        LOGGER.info("Database selected via property " + PropertyNames.NO_SQL_DATABASE_TYPE + ":"
+                + noSqlDatabaseTypeStr + " is : " + noSqlDatabaseType.name());
+    }
+
+    /**
      * Instantiates a new Ignite base DAO Mongo.
      */
-    @SuppressWarnings("unchecked")
+
     protected IgniteBaseDAOMongoImpl() {
         @SuppressWarnings("rawtypes")
         TypeToken<? extends IgniteBaseDAOMongoImpl> typeToken = TypeToken.of(getClass());
@@ -263,9 +279,12 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         updatesTranslator = new UpdatesTranslatorMorphiaImpl();
         String overridingCollection = getOverridingCollectionName();
 
+
+
         if (StringUtils.isEmpty(overridingCollection)) {
-            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB && !collectionExists(entityClassName)) {
-                mongoDatastore.getDatabase().createCollection(entityClassName);
+
+            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+                createCollectionIfNotExists(entityClass);
             }
             mongoDatastore.ensureIndexes(entityClass);
             if (diagnosticMongoReporterEnabled) {
@@ -303,6 +322,14 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         }
         initializeMetricsObjects();
         loadShardKeys();
+    }
+
+    private void createCollectionIfNotExists(Class<E> entityClass) {
+        MongoCollection<E> collection = mongoDatastore.getMapper().getCollection(entityClass);
+        String collectionName = collection.getNamespace().getCollectionName();
+        if (!collectionExists(collectionName)) {
+            mongoDatastore.getDatabase().createCollection(collectionName);
+        }
     }
 
     /**

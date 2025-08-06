@@ -73,7 +73,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.eclipse.ecsp.nosqldao.utils.Constants.*;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.AND;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.AT_THE_RATE;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.AUTHMECHANISM;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.COLON;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.EQUALS;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.FRONT_SLASH;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.QUESTION_MARK;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.READ_PREFERENCE;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.RETRY_WRITES;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.TLS;
+
+
 
 /**
  * Abstract class for configuring MongoDB settings for NoSQL DAO.
@@ -722,14 +733,16 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     private String getConnectionStringForDocumentDb() {
         StringBuilder sb = new StringBuilder("mongodb://");
         if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
-            sb.append(uname).append(COLON).append(pwd).append(AT_THE_RATE).append(host).append(COLON).append(ducumentDbPort).append("/").append(documentDbName)
-            .append(ducumentDbPort).append(FRONT_SLASH).append(documentDbName).append(QUESTION_MARK).append("tls=").append(documentDbTlsEnabled);
+            sb.append(uname).append(COLON).append(pwd)
+                    .append(AT_THE_RATE).append(host).append(COLON).append(ducumentDbPort)
+                    .append(FRONT_SLASH).append(documentDbName).append(QUESTION_MARK)
+                    .append(TLS).append(EQUALS).append(documentDbTlsEnabled);
             if (!documentDbAuthMechanism.isEmpty()) {
-                sb.append("&authenticationMechanism=").append(documentDbAuthMechanism);
+                sb.append(AND).append(AUTHMECHANISM).append(EQUALS).append(documentDbAuthMechanism);
             }
-            sb.append("&retryWrites=").append(documentDbRetryWrites);
+            sb.append(AND).append(RETRY_WRITES).append(EQUALS).append(documentDbRetryWrites);
             if (!documentDbReadPreference.isEmpty()) {
-                sb.append("&readpreference=").append(documentDbReadPreference);
+                sb.append(AND).append(READ_PREFERENCE).append(EQUALS).append(documentDbReadPreference);
             }
 
         }

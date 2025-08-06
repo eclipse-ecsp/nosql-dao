@@ -192,6 +192,34 @@ public abstract class Constants {
      */
     public static final String QUESTION_MARK = "?";
     /**
+     * The ampersand constant.
+     */
+    public static final String AND = "&";
+    /**
+     * The equals constant.
+     */
+    public static final String EQUALS = "=";
+    /**
+     * The tls constant.
+     */
+    public static final String TLS = "tls";
+    /**
+     * The authenticationMechanism constant.
+     */
+    public static final String AUTHMECHANISM = "authenticationMechanism";
+
+    /**
+     * The retryWrites constant.
+     */
+    public static final String RETRY_WRITES = "retryWrites";
+    /**
+     * The readPreference constant.
+     */
+    public static final String READ_PREFERENCE = "readpreference";
+
+
+
+    /**
      * Private constructor.
      */
     private Constants() {
