@@ -222,11 +222,6 @@ public abstract class PropertyNames {
     public static final String DOCUMENTDB_TLS_ENABLED = "documentdb.tls.enabled";
 
     /**
-     * DocumentDB authentication mechanism property name.
-     */
-    public static final String DOCUMENTDB_AUTH_MECHANISM = "documentdb.auth.mechanism";
-
-    /**
      * DocumentDB retry writes property name.
      */
     public static final String DOCUMENTDB_RETRY_WRITES = "documentdb.retry.writes";

@@ -77,6 +77,7 @@ import static org.eclipse.ecsp.nosqldao.utils.Constants.AND;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.AT_THE_RATE;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.AUTHMECHANISM;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.COLON;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.DEFAULT_AUTHMECHANISM;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.EQUALS;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.FRONT_SLASH;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.QUESTION_MARK;
@@ -299,9 +300,6 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
 
     @Value("${" + PropertyNames.DOCUMENTDB_TLS_ENABLED + ":false}")
     protected boolean documentDbTlsEnabled;
-
-    @Value("${" + PropertyNames.DOCUMENTDB_AUTH_MECHANISM + ":}")
-    protected String documentDbAuthMechanism;
 
     @Value("${" + PropertyNames.DOCUMENTDB_RETRY_WRITES + ":false}")
     protected boolean documentDbRetryWrites;
@@ -737,8 +735,8 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
                     .append(AT_THE_RATE).append(host).append(COLON).append(ducumentDbPort)
                     .append(FRONT_SLASH).append(documentDbName).append(QUESTION_MARK)
                     .append(TLS).append(EQUALS).append(documentDbTlsEnabled);
-            if (!documentDbAuthMechanism.isEmpty()) {
-                sb.append(AND).append(AUTHMECHANISM).append(EQUALS).append(documentDbAuthMechanism);
+            if (documentDbTlsEnabled) {
+                sb.append(AND).append(AUTHMECHANISM).append(EQUALS).append(DEFAULT_AUTHMECHANISM);
             }
             sb.append(AND).append(RETRY_WRITES).append(EQUALS).append(documentDbRetryWrites);
             if (!documentDbReadPreference.isEmpty()) {

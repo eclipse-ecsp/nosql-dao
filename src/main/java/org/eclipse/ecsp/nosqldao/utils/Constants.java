@@ -208,6 +208,8 @@ public abstract class Constants {
      */
     public static final String AUTHMECHANISM = "authenticationMechanism";
 
+    public static final String DEFAULT_AUTHMECHANISM = "SCRAM-SHA-1";
+
     /**
      * The retryWrites constant.
      */
