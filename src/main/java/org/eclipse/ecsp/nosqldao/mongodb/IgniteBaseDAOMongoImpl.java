@@ -227,7 +227,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
     /**
      * Instantiates a new Ignite base DAO Mongo.
      */
-
+    @SuppressWarnings("unchecked")
     protected IgniteBaseDAOMongoImpl() {
         @SuppressWarnings("rawtypes")
         TypeToken<? extends IgniteBaseDAOMongoImpl> typeToken = TypeToken.of(getClass());

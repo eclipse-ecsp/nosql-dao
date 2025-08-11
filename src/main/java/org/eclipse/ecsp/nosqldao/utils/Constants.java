@@ -219,6 +219,40 @@ public abstract class Constants {
      */
     public static final String READ_PREFERENCE = "readpreference";
 
+    /**
+     * The connectTimeoutMS constant.
+     */
+    public static final String CONN_TIME_OUT = "connectTimeoutMS";
+
+    /**
+     * The socketTimeoutMS constant.
+     */
+    public static final String SOCKET_TIME_OUT = "socketTimeoutMS";
+
+    /**
+     * The maxWaitTimeMS constant.
+     */
+    public static final String MAX_CONN_IDLE_TIME = "maxConnectionIdleTime";
+    /**
+     * The maxWaitTimeMS constant.
+     */
+    public static final String MIN_CONN_PER_HOST = "minConnectionsPerHost";
+    /**
+     * The maxWaitTimeMS constant.
+     */
+    public static final String MAX_CONN_PER_HOST = "maxConnectionsPerHost";
+    /**
+     * The writeConcern constant.
+     */
+    public static final String WRITE_CONCERN = "writeConcern";
+    /**
+     * The readConcern constant.
+     */
+    public static final String READ_CONCERN = "readConcern";
+    /**
+     * The retryReads constant.
+     */
+    public static final String RETRY_READS = "retryReads";
 
 
     /**

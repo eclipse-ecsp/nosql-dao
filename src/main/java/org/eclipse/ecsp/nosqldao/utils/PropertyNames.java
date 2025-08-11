@@ -252,8 +252,48 @@ public abstract class PropertyNames {
     public static final String DOCUMENTDB_PASSWORD = "documentdb.password";
 
     /**
+     * DocumentDB connection timeout property name.
+     */
+    public static final String DOCUMENTDB_CONN_TIMEOUT = "documentdb.connectTimeoutMS";
+
+    /**
+     * DocumentDB socket timeout property name.
+     */
+    public static final String DOCUMENTDB_SOCKET_TIMEOUT = "documentdb.socketTimeoutMS";
+
+    /**
+     * DocumentDB maximum connection idle time property name.
+     */
+    public static final String DOCUMENTDB_MAX_CONN_IDLE_TIME = "documentdb.maxConnectionIdleTime";
+
+    /**
+     * DocumentDB minimum connections per host property name.
+     */
+    public static final String DOCUMENTDB_MIN_CONN_PER_HOST = "documentdb.minConnectionsPerHost";
+
+    /**
+     * DocumentDB maximum connections per host property name.
+     */
+    public static final String DOCUMENTDB_MAX_CONN_PER_HOST = "documentdb.maxConnectionsPerHost";
+
+    /**
+     * DocumentDB write concern property name.
+     */
+    public static final String DOCUMENTDB_WRITE_CONCERN = "documentdb.writeConcern";
+
+    /**
+     * DocumentDB read concern property name.
+     */
+    public static final String DOCUMENTDB_READ_CONCERN = "documentdb.readConcern";
+    /**
+     * DocumentDB retry reads property name.
+     */
+    public static final String DOCUMENTDB_RETRY_READS = "documentdb.retry.reads";
+
+    /**
      * Private constructor to prevent instantiation.
      */
+
     private PropertyNames() {
          // private constructor
     }

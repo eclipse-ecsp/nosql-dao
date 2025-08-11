@@ -59,6 +59,7 @@ import org.bson.codecs.configuration.CodecRegistry;
 import org.eclipse.ecsp.healthcheck.HealthMonitor;
 import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
 import org.eclipse.ecsp.nosqldao.utils.Constants;
+import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
 import org.eclipse.ecsp.nosqldao.utils.PropertyNames;
 import org.eclipse.ecsp.utils.logger.IgniteLogger;
 import org.eclipse.ecsp.utils.logger.IgniteLoggerFactory;
@@ -77,13 +78,23 @@ import static org.eclipse.ecsp.nosqldao.utils.Constants.AND;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.AT_THE_RATE;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.AUTHMECHANISM;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.COLON;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.CONN_TIME_OUT;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.DEFAULT_AUTHMECHANISM;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.EQUALS;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.FRONT_SLASH;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.MAX_CONN_IDLE_TIME;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.MAX_CONN_PER_HOST;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.MIN_CONN_PER_HOST;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.QUESTION_MARK;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.READ_CONCERN;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.READ_PREFERENCE;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.RETRY_READS;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.RETRY_WRITES;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.SOCKET_TIME_OUT;
 import static org.eclipse.ecsp.nosqldao.utils.Constants.TLS;
+import static org.eclipse.ecsp.nosqldao.utils.Constants.WRITE_CONCERN;
+
+
 
 
 
@@ -231,7 +242,6 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     @Value("${mongodb.read.preference:secondaryPreferred}")
     protected String readPreference;
-
     /**
      * The packages to map for Morphia.
      * The default value is org.eclipse.ecsp.
@@ -295,17 +305,47 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     @Value("${" + PropertyNames.COSMOS_DB_CONNECTION_STRING + ":}")
     protected String cosmosDbConnectionString;
 
+    /**
+     * The name of the DocumentDB database.
+     * The default value is empty.
+     */
     @Value("${" + PropertyNames.DOCUMENTDB_NAME + ":}")
     protected String documentDbName;
 
+    /**
+     * Indicates if TLS is enabled for DocumentDB.
+     * The default value is false.
+     */
     @Value("${" + PropertyNames.DOCUMENTDB_TLS_ENABLED + ":false}")
     protected boolean documentDbTlsEnabled;
 
+    /**
+     * Indicates if retryable writes are enabled for DocumentDB.
+     * The default value is false.
+     */
     @Value("${" + PropertyNames.DOCUMENTDB_RETRY_WRITES + ":false}")
     protected boolean documentDbRetryWrites;
 
     @Value("${" + PropertyNames.DOCUMENTDB_READ_PREFFRENCE + ":secondaryPreferred}")
     protected String documentDbReadPreference;
+    @Value("${" + PropertyNames.DOCUMENTDB_MAX_CONN_PER_HOST + ":}")
+    protected String documentDbMaxConnPerHost;
+    @Value("${" + PropertyNames.DOCUMENTDB_MIN_CONN_PER_HOST + ":}")
+    protected String documentDbMinConnPerHost;
+    @Value("${" + PropertyNames.DOCUMENTDB_MAX_CONN_IDLE_TIME + ":}")
+    protected String documentDbMaxConnIdleTime;
+    @Value("${" + PropertyNames.DOCUMENTDB_CONN_TIMEOUT + ":}")
+    protected String documentDbConnTimeout;
+    @Value("${" + PropertyNames.DOCUMENTDB_SOCKET_TIMEOUT + ":}")
+    protected String documentDbSocketTimeout;
+    @Value("${" + PropertyNames.DOCUMENTDB_WRITE_CONCERN + ":}")
+    protected String documentDbWriteConcern;
+    @Value("${" + PropertyNames.DOCUMENTDB_READ_CONCERN + ":}")
+    protected String documentDbReadConcern;
+    @Value("${" + PropertyNames.DOCUMENTDB_RETRY_READS + ":}")
+    protected String documentDbRetryReads;
+
+
     /**
      * The name of the CosmosDB database.
      * The default value is empty.
@@ -738,10 +778,34 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             if (documentDbTlsEnabled) {
                 sb.append(AND).append(AUTHMECHANISM).append(EQUALS).append(DEFAULT_AUTHMECHANISM);
             }
-            sb.append(AND).append(RETRY_WRITES).append(EQUALS).append(documentDbRetryWrites);
-            if (!documentDbReadPreference.isEmpty()) {
-                sb.append(AND).append(READ_PREFERENCE).append(EQUALS).append(documentDbReadPreference);
+            sb.append(AND).append(RETRY_WRITES).append(EQUALS).append(documentDbRetryWrites)
+                    .append(AND).append(READ_PREFERENCE).append(EQUALS).append(documentDbReadPreference);
+
+            if (!StringUtils.isEmpty(documentDbConnTimeout)) {
+                sb.append(AND).append(CONN_TIME_OUT).append(EQUALS).append(documentDbConnTimeout);
             }
+            if (!StringUtils.isEmpty(documentDbSocketTimeout))  {
+                sb.append(AND).append(SOCKET_TIME_OUT).append(EQUALS).append(documentDbSocketTimeout);
+            }
+            if (!StringUtils.isEmpty(documentDbMaxConnIdleTime)) {
+                sb.append(AND).append(MAX_CONN_IDLE_TIME).append(EQUALS).append(documentDbMaxConnIdleTime);
+            }
+            if (!StringUtils.isEmpty(documentDbMinConnPerHost)) {
+                sb.append(AND).append(MIN_CONN_PER_HOST).append(EQUALS).append(documentDbMinConnPerHost);
+            }
+            if (!StringUtils.isEmpty(documentDbMaxConnPerHost)) {
+                sb.append(AND).append(MAX_CONN_PER_HOST).append(EQUALS).append(documentDbMaxConnPerHost);
+            }
+            if (!StringUtils.isEmpty(documentDbWriteConcern)) {
+                sb.append(AND).append(WRITE_CONCERN).append(EQUALS).append(documentDbWriteConcern);
+            }
+            if (!StringUtils.isEmpty(documentDbRetryReads)) {
+                sb.append(AND).append(RETRY_READS).append(EQUALS).append(documentDbRetryReads);
+            }
+            if (!StringUtils.isEmpty(documentDbReadConcern)) {
+                sb.append(AND).append(READ_CONCERN).append(EQUALS).append(documentDbReadConcern);
+            }
+
 
         }
         LOGGER.info("document db connection string is :" + sb);
