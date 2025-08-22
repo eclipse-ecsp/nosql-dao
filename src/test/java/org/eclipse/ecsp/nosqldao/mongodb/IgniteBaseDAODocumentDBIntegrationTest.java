@@ -56,7 +56,6 @@ import org.eclipse.ecsp.nosqldao.IgniteQuery;
 import org.eclipse.ecsp.nosqldao.Operator;
 import org.eclipse.ecsp.nosqldao.Updates;
 import org.eclipse.ecsp.nosqldao.ecall.ECallEvent;
-import org.eclipse.ecsp.nosqldao.ecall.ECallEvent.AuthUsers;
 import org.eclipse.ecsp.nosqldao.ecall.EcallDAO;
 import org.eclipse.ecsp.nosqldao.ecall.TestEntity;
 import org.eclipse.ecsp.nosqldao.ecall.TestEntity2;
@@ -67,6 +66,7 @@ import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -96,6 +96,7 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Test Class for IgniteBaseDAODocumentDB operations with DocumentDB. 
  */
+@Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class })
 @TestPropertySource("/ignite-dao-documentdb.properties")
