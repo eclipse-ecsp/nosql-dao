@@ -42,18 +42,13 @@ package org.eclipse.ecsp.nosqldao.spring.config;
 
 import com.mongodb.MongoClientException;
 import com.mongodb.MongoClientSettings;
-import com.mongodb.MongoCredential;
 import com.mongodb.MongoException;
 import com.mongodb.MongoSocketException;
-import com.mongodb.ReadPreference;
-import com.mongodb.Tag;
-import com.mongodb.TagSet;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import dev.morphia.AdvancedDatastore;
 import dev.morphia.Morphia;
 import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
-import org.eclipse.ecsp.nosqldao.mongodb.MongoReadPreference;
 import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
 import org.eclipse.ecsp.utils.logger.IgniteLogger;
 import org.eclipse.ecsp.utils.logger.IgniteLoggerFactory;
@@ -95,26 +90,12 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
     @Override
     protected AdvancedDatastore getDatastore() {
         mongoClient = createMongoClient();
-        String dataStoreDbName = dbName;
-        if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
-            dataStoreDbName = cosmosdbName;
-        }
         AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(mongoClient, 
-                dataStoreDbName, mapperOptions);
+                getDatastoreDbName(), mapperOptions);
         mapPackagesToDatastore(ads);
         peInvocationHandler.setDatastore(ads);
         return (AdvancedDatastore) Proxy.newProxyInstance(this.getClass().getClassLoader(),
                 new Class[] { AdvancedDatastore.class }, peInvocationHandler);
-    }
-
-    /**
-     * Creates and returns MongoCredential using the provided username, authentication database, and password.
-     *
-     * @return MongoCredential instance
-     */
-    private MongoCredential getMongoCredentials() {
-        return MongoCredential.createCredential(username, authDb,
-                password.toCharArray());
     }
 
     /**
@@ -127,35 +108,25 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
         MongoClient newMongoClient = null;
         MongoClientSettings mongoClientSettings = null;
         MongoClientSettings.Builder mongoClientSettingsBuilder = createMongoClientSettingsBuilder();
-        if (noSqlDatabaseType == NoSqlDatabaseType.MONGODB) {
-            mongoClientSettingsBuilder.credential(getMongoCredentials());
+        if (noSqlDatabaseType != NoSqlDatabaseType.COSMOSDB) {
+            mongoClientSettingsBuilder.credential(getCredentials());
         }
-        LOGGER.info("Initializing MongoClient with servers={}", servers);
+        LOGGER.info("Initializing MongoClient {}", logTarget());
         try {
-
-            if (taggableReadPreferenceEnabled) {
-                mongoClientSettings = mongoClientSettingsBuilder
-                        .readPreference(ReadPreference.secondaryPreferred(new TagSet(
-                                new Tag(readPreferenceTag, "true")))).build();
-            } else {
-                mongoClientSettings = mongoClientSettingsBuilder
-                        .readPreference(MongoReadPreference.getEnum(readPreference).getReadPreference())
-                        .build();
-            }
-
+            mongoClientSettings = mongoClientSettingsBuilder.build();
             long startTime = System.currentTimeMillis();
             newMongoClient = MongoClients.create(mongoClientSettings);
             long endTime = System.currentTimeMillis();
             setHealthy(true);
-            LOGGER.info("Initialized mongo client with servers = {} and time taken in millisec is: {}",
-                    servers, endTime - startTime);
+            LOGGER.info("Initialized mongo client {} and time taken in millisec is: {}", 
+                logTarget(), endTime - startTime);
         } catch (Exception e) {
             if (null != newMongoClient) {
                 newMongoClient.close();
             }
             setHealthy(false);
-            LOGGER.error("Failed to initialize mongodb connection", e);
-            throw new MongoConnectionException("Failed to initialize mongodb connection", e);
+            LOGGER.error("Failed to initialize database connection", e);
+            throw new MongoConnectionException("Failed to initialize database connection", e);
         }
         return newMongoClient;
     }
@@ -171,12 +142,8 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
     public boolean isHealthy(boolean forceToRecreateClient) {
 
         if (forceToRecreateClient && (!healthy || mongoClient == null)) {
-            String dataStoreDbName = dbName;
-            if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
-                dataStoreDbName = cosmosdbName;
-            }
-            AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(createMongoClient(),
-                    dataStoreDbName, mapperOptions);
+            AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(
+                createMongoClient(), getDatastoreDbName(), mapperOptions);
             mapPackagesToDatastore(ads);
             peInvocationHandler.setDatastore(ads);
             setHealthy(true);

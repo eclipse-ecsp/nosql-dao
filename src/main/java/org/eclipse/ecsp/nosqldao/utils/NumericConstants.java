@@ -13,9 +13,29 @@ public class NumericConstants {
     }
 
     /**
+     * Constant for the value 1L.
+     */
+    public static final long LONG_ONE = 1L;
+
+    /**
      * Constant for the value 32.
      */
     public static final int THIRTY_TWO = 32;
+
+    /**
+     * Constant for the value 48.
+     */
+    public static final int FORTY_EIGHT = 48;
+
+    /**
+     * Constant for the value 26.
+     */
+    public static final int TWENTY_SIX = 26;
+
+    /**
+     * Constant for the value 85.
+     */
+    public static final int EIGHTY_FIVE = 85;
 
     /**
      * Constant for the value 1000.
@@ -56,6 +76,11 @@ public class NumericConstants {
      * Constant for the value 60000.
      */
     public static final int SIXTY_K = 60000;
+
+    /**
+     * Constant for the value 20L.
+     */
+    public static final long LONG_TWENTY = 20L;
 
     /**
      * Constant for the value 20000.
@@ -131,6 +156,9 @@ public class NumericConstants {
      * Constant for the value 10.
      */
     public static final int TEN = 10;
+
+    // constant for 30
+    public static final int THIRTY = 30;
 
     /**
      * Constant for the value 30000.

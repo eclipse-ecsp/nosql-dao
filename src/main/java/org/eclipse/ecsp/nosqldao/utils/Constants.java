@@ -177,6 +177,31 @@ public abstract class Constants {
     public static final String DISCRIMINATOR_KEY = "className";
 
     /**
+     * The discriminator value constant.
+     */
+    public static final String COLON = ":";
+
+    /**
+     * The discriminator value constant.
+     */
+    public static final String AT_THE_RATE = "@";
+
+    /**
+     * The front slash constant.
+     */
+    public static final String FRONT_SLASH = "/";
+
+    /**
+     * The question mark constant.
+     */
+    public static final String QUESTION_MARK = "?";
+
+    /**
+     * MongoDB prefix constant.
+     */
+    public static final String MONGODB_PREFIX = "mongodb://";
+
+    /**
      * Private constructor.
      */
     private Constants() {

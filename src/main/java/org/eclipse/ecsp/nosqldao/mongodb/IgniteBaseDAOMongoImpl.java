@@ -41,6 +41,7 @@
 package org.eclipse.ecsp.nosqldao.mongodb;
 
 import com.google.common.reflect.TypeToken;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.DistinctIterable;
 import com.mongodb.client.ListIndexesIterable;
 import com.mongodb.client.MongoCollection;
@@ -76,6 +77,7 @@ import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
 import org.eclipse.ecsp.nosqldao.IgnitePagingInfoResponse;
 import org.eclipse.ecsp.nosqldao.IgniteQuery;
 import org.eclipse.ecsp.nosqldao.MongoDiagnosticReporterImpl;
+import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
 import org.eclipse.ecsp.nosqldao.Operator;
 import org.eclipse.ecsp.nosqldao.QueryTranslator;
 import org.eclipse.ecsp.nosqldao.Updates;
@@ -187,6 +189,18 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
     private boolean daoMetricsEnabled;
 
     /**
+     * The maximum number of attempts to ensure the DocumentDB index.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_INDEX_ENSURE_MAX_ATTEMPTS + ":2}")
+    private int indexEnsureMaxAttempts;
+
+    /**
+     * The backoff time in milliseconds for ensuring the DocumentDB index.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_INDEX_ENSURE_BACKOFF_BASE_MS + ":100}")
+    private long indexEnsureBackoffBaseMs;
+
+    /**
      * The name of the entity class.
      */
     private String entityClassName;
@@ -201,6 +215,25 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
      * The map of shard keys.
      */
     private Map<String, List<String>> shardKeyMap;
+
+    /**
+     * The NoSQL database type.
+     */
+    protected NoSqlDatabaseType noSqlDatabaseType;
+
+    /**
+     * Setter for reading property and assigning appropriate enumeration for database type.
+     * @param noSqlDatabaseTypeStr : String
+     */
+    @Autowired
+    public void setNoSqlDatabaseType(@Value("${" + PropertyNames.NO_SQL_DATABASE_TYPE + ":}")
+                                     String noSqlDatabaseTypeStr) {
+        if (StringUtils.isBlank(noSqlDatabaseTypeStr)) {
+            noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
+        } else {
+            noSqlDatabaseType = NoSqlDatabaseType.valueOf(noSqlDatabaseTypeStr.toUpperCase());
+        }
+    }
 
     /**
      * Instantiates a new Ignite base DAO Mongo.
@@ -257,15 +290,23 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         updatesTranslator = new UpdatesTranslatorMorphiaImpl();
         String overridingCollection = getOverridingCollectionName();
         if (StringUtils.isEmpty(overridingCollection)) {
-            mongoDatastore.ensureIndexes(entityClass);
+            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+                ensureIndexesWithRetryForEntityClass();
+            } else {
+                mongoDatastore.ensureIndexes(entityClass);
+            }
             if (diagnosticMongoReporterEnabled) {
                 collection = mongoDatastore.getMapper().getCollection(entityClass);
             }
         } else {
             EntityModel model = mongoDatastore.getMapper().getEntityModel(entityClass);
             IndexHelper indexHelper = new IndexHelper(mongoDatastore.getMapper());
-            indexHelper.createIndex(mongoDatastore.getDatabase().getCollection(
-                    overridingCollection, entityClass), model);
+            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+                ensureIndexesWithRetryForOverride(indexHelper, model, overridingCollection);
+            } else {
+                indexHelper.createIndex(
+                    mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass), model);
+            }
             if (diagnosticMongoReporterEnabled) {
                 collection = mongoDatastore.getDatabase().getCollection(overridingCollection);
             }
@@ -290,6 +331,92 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         }
         initializeMetricsObjects();
         loadShardKeys();
+    }
+
+    /**
+     * Create collection and swallow NamespaceExists in concurrent starts.
+     */
+    private void safeCreateCollection(String collectionName) {
+        try {
+            mongoDatastore.getDatabase().createCollection(collectionName);
+            LOGGER.info("Created collection: {}", collectionName);
+        } catch (MongoCommandException mce) {
+            // 48 = NamespaceExists
+            if (mce.getErrorCode() == NumericConstants.FORTY_EIGHT 
+                    || String.valueOf(mce.getErrorCode()).equals(String.valueOf(NumericConstants.FORTY_EIGHT))) {
+                LOGGER.info("Collection {} already exists (race); continuing", collectionName);
+            } else {
+                throw mce;
+            }
+        }
+    }
+
+    /**
+     * Common retry helper for ensuring/creating indexes that may race with collection creation.
+     * Retries on Mongo error codes 26 (NamespaceNotFound) and 85 (implicit creation not supported).
+     *
+     * @param collectionName the name of the collection to create if missing
+     * @param indexCreationAction the action that creates indexes
+     */
+    private void ensureIndexesWithRetry(String collectionName, Runnable indexCreationAction) {
+        final int MAX_ATTEMPTS = Math.max(1, indexEnsureMaxAttempts);
+        int attempt = 0;
+        while (true) {
+            try {
+                indexCreationAction.run();
+                return;
+            } catch (MongoCommandException mce) {
+                int code = mce.getErrorCode();
+                boolean retryable = code == NumericConstants.TWENTY_SIX || code == NumericConstants.EIGHTY_FIVE;
+                if (retryable && attempt < MAX_ATTEMPTS - 1) {
+                    attempt++;
+                    LOGGER.warn("Index creation failed for {} with code {}; "
+                        + "creating collection and retrying (attempt {}/{})",
+                        collectionName, code, attempt, MAX_ATTEMPTS);
+                    safeCreateCollection(collectionName);
+                    backoff(attempt);
+                } else {
+                    throw mce;
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensure indexes for entity class with retry if collection isn't present yet.
+     * Concurrency-safe ensure indexes with catch-and-retry if collection creation races across pods.
+     */
+    private void ensureIndexesWithRetryForEntityClass() {
+        MongoCollection<E> coll = mongoDatastore.getMapper().getCollection(entityClass);
+        String collName = coll.getNamespace().getCollectionName();
+        ensureIndexesWithRetry(collName, () -> mongoDatastore.ensureIndexes(entityClass));
+    }
+
+    /**
+     * Ensure indexes for overriding collection with retry if collection isn't present yet.
+     *
+     * @param indexHelper the index helper to create indexes
+     * @param model the entity model
+     * @param overridingCollection the name of the overriding collection
+     */
+    private void ensureIndexesWithRetryForOverride(IndexHelper indexHelper, 
+            EntityModel model, String overridingCollection) {
+        ensureIndexesWithRetry(
+            overridingCollection,
+            () -> indexHelper.createIndex(
+                mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass), model));
+    }
+
+    /**
+     * Backoff strategy for retrying operations.
+     * @param attempt the current attempt number
+     */
+    private void backoff(int attempt) {
+        try {
+            Thread.sleep(indexEnsureBackoffBaseMs * attempt);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**

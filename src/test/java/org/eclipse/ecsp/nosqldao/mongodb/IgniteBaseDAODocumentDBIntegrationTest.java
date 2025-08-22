@@ -94,13 +94,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * Test Class for IgniteBaseDAOMongo operations with CosmosDB.
+ * Test Class for IgniteBaseDAODocumentDB operations with DocumentDB. 
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class })
-@TestPropertySource("/ignite-dao-cosmosdb.properties")
-public class IgniteBaseDAOCosmosDBIntegrationTest {
-
+@TestPropertySource("/ignite-dao-documentdb.properties")
+public class IgniteBaseDAODocumentDBIntegrationTest {
     private static final String SOURCEDEVICEID = "sourceDeviceId";
 
     @Autowired
@@ -122,8 +121,8 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
     @Before
     public void setupEcallDAO() throws IOException {
         Properties daoProperties = new Properties();
-        daoProperties.load(IgniteBaseDAOCosmosDBIntegrationTest.class.getResourceAsStream(
-                "/ignite-dao-cosmosdb.properties"));
+        daoProperties.load(IgniteBaseDAODocumentDBIntegrationTest.class.getResourceAsStream(
+                "/ignite-dao-documentdb.properties"));
     }
 
     @Test
@@ -143,7 +142,7 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         assertNotNull(ecall.getLastUpdatedTime());
         Assert.assertTrue(ecall.getLastUpdatedTime().isBefore(LocalDateTime.now()));
     }
-
+    
     @Test
     public void testSaveAll() {
         ECallEvent ecall1 = new ECallEvent();
@@ -361,13 +360,13 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         igniteQuery = new IgniteQuery(icg);
         boolean duplicateKeyException = false;
         try {
-            ecallDao.upsert(igniteQuery, ecall3);
+            upsertFlag = ecallDao.upsert(igniteQuery, ecall3);
         } catch (Exception dke) {
             if (dke instanceof MongoWriteException) {
                 duplicateKeyException = true;
             }
         }
-        ecallDao.findByIds("ECallIdAll_1");
+        ecallEventList = ecallDao.findByIds("ECallIdAll_1");
         Assert.assertTrue(duplicateKeyException);
     }
 
@@ -793,6 +792,8 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         ecall.setTimestamp(NumericConstants.TIMESTAMP);
         ecall.setVehicleId("Vehicle_1");
         ecall.setVersion(org.eclipse.ecsp.domain.Version.V1_0);
+        BytesBuffer buffer = new BytesBuffer("Test".getBytes());
+        //ecall.setBytesBuffer(buffer);
         ecallDao.save(ecall);
         ECallEvent ecallOut = ecallDao.findById("ECallId_ByteBuffer1");
         assertEquals("Error in converting ByteBuffer", ecall.getBytesBuffer(), ecallOut.getBytesBuffer());
@@ -860,7 +861,7 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         au1.setCreatedOn(LocalDateTime.now());
         au1.setUpdatedOn(LocalDateTime.now());
 
-        ArrayList<AuthUsers> aus = new ArrayList<AuthUsers>();
+        ArrayList<ECallEvent.AuthUsers> aus = new ArrayList<ECallEvent.AuthUsers>();
         aus.add(au1);
         aus.add(au2);
         ecall.setAuthorizedUsers(aus);
@@ -905,7 +906,7 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         au2.setCreatedOn(LocalDateTime.now());
         au2.setUpdatedOn(LocalDateTime.now());
 
-        ArrayList<AuthUsers> aus = new ArrayList<AuthUsers>();
+        ArrayList<ECallEvent.AuthUsers> aus = new ArrayList<ECallEvent.AuthUsers>();
         aus.add(au1);
         aus.add(au2);
         ecall.setAuthorizedUsers(aus);
@@ -953,7 +954,7 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         au2.setCreatedOn(LocalDateTime.now());
         au2.setUpdatedOn(LocalDateTime.now());
 
-        ArrayList<AuthUsers> aus = new ArrayList<AuthUsers>();
+        ArrayList<ECallEvent.AuthUsers> aus = new ArrayList<ECallEvent.AuthUsers>();
         aus.add(au1);
         aus.add(au2);
         ecall.setAuthorizedUsers(aus);
@@ -999,10 +1000,10 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         au3.setCreatedOn(LocalDateTime.now());
         au3.setUpdatedOn(LocalDateTime.now());
 
-        ArrayList<AuthUsers> aus = new ArrayList<AuthUsers>();
+        ArrayList<ECallEvent.AuthUsers> aus = new ArrayList<ECallEvent.AuthUsers>();
         aus.add(au1);
         aus.add(au2);
-        ArrayList<AuthUsers> aus1 = new ArrayList<AuthUsers>();
+        ArrayList<ECallEvent.AuthUsers> aus1 = new ArrayList<ECallEvent.AuthUsers>();
         aus1.add(au3);
 
         ECallEvent ecall = new ECallEvent();
@@ -1222,7 +1223,7 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
     public void testIndexCreation() {
         dao.deleteAll();
         TestEvent event = new TestEvent();
-        event.setManufacturer("dummyMfr");
+        event.setManufacturer("audi");
         event.setModel("A3");
         event.setYear("1992");
         event.setPrice(NumericConstants.PRICE);

@@ -42,7 +42,11 @@ package org.eclipse.ecsp.nosqldao.spring.config;
 
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoCredential;
+import com.mongodb.ReadPreference;
 import com.mongodb.ServerAddress;
+import com.mongodb.Tag;
+import com.mongodb.TagSet;
 import com.mongodb.client.MongoClient;
 import dev.morphia.AdvancedDatastore;
 import dev.morphia.mapping.DiscriminatorFunction;
@@ -58,6 +62,7 @@ import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.eclipse.ecsp.healthcheck.HealthMonitor;
 import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
+import org.eclipse.ecsp.nosqldao.mongodb.MongoReadPreference;
 import org.eclipse.ecsp.nosqldao.utils.Constants;
 import org.eclipse.ecsp.nosqldao.utils.PropertyNames;
 import org.eclipse.ecsp.utils.logger.IgniteLogger;
@@ -299,6 +304,62 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     protected Integer maintenanceFrequency;
 
     /**
+     * The host for DocumentDB.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_HOST + ":}")
+    protected String docDbHost;
+
+    /**
+     * The port for DocumentDB.
+     * The default value is 27017.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_PORT + ":27017}")
+    protected int docDbPort;
+
+    /**
+     * The username for DocumentDB.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_USERNAME + ":}")
+    protected String docDbUsername;
+
+    /**
+     * The password for DocumentDB.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_PASSWORD + ":}")
+    protected String docDbPassword;
+
+    /**
+     * The name of the DocumentDB database.
+     * The default value is empty.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_NAME + ":}")
+    protected String docDbName;
+
+    /**
+     * The connection parameters for DocumentDB.
+     * The default value is defined by PropertyNames.DOCUMENTDB_DEFAULT_CONNECTION_PARAMS.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_CONNECTION_PARAMS + ":" 
+            + PropertyNames.DOCUMENTDB_DEFAULT_CONNECTION_PARAMS + "}")
+    protected String docDbConnectionParams;
+
+    /**
+     * The authentication database for DocumentDB.
+     * The default value is admin.
+     */
+    @Value("${" + PropertyNames.DOCUMENTDB_AUTH_DB + ":admin}")
+    protected String docDbAuthDb;
+
+    /**
+     * Custom connection pool listener.
+     */
+    @Autowired
+    private CustomConnectionPoolListener customConnectionPoolListener;
+
+    /**
      * Type of NoSQL database.
      */
     protected NoSqlDatabaseType noSqlDatabaseType;
@@ -429,6 +490,18 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     }
 
     /**
+     * Gets the MongoDB credentials.
+     * @return the MongoCredential
+     */
+    protected MongoCredential getCredentials() {
+        if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+            return MongoCredential.createCredential(docDbUsername, docDbAuthDb,
+                    docDbPassword.toCharArray());
+        }
+        return MongoCredential.createCredential(username, authDb, password.toCharArray());
+    }
+
+    /**
      * Validates the configuration properties for MongoDB and CosmosDB.
      * Throws IllegalArgumentException if any required property is missing.
      */
@@ -440,10 +513,35 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             validateMongoDbAttributes(inValidConfAttributes);
         } else if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
             validateCosmosDbAttributes(inValidConfAttributes);
+        } else if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
+            validateDocumentDbAttributes(inValidConfAttributes);
         }
         if (!inValidConfAttributes.isEmpty()) {
             throw new IllegalArgumentException("Missing connection properties: "
                     + inValidConfAttributes.toString());
+        }
+    }
+
+    /**
+     * Validates the configuration properties for DocumentDB.
+     *
+     * @param inValidConfAttributes : List of String
+     */
+    private void validateDocumentDbAttributes(List<String> inValidConfAttributes) {
+        if (StringUtils.isBlank(docDbHost)) {
+            inValidConfAttributes.add("documentdb.host");
+        }
+        if (docDbPort == 0) {
+            inValidConfAttributes.add("documentdb.port");
+        }
+        if (StringUtils.isBlank(docDbUsername)) {
+            inValidConfAttributes.add("documentdb.username");
+        }
+        if (StringUtils.isBlank(docDbPassword)) {
+            inValidConfAttributes.add("documentdb.password");
+        }
+        if (StringUtils.isBlank(docDbAuthDb)) {
+            inValidConfAttributes.add("documentdb.auth.db");
         }
     }
 
@@ -623,12 +721,49 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     private MongoClientSettings.Builder getMongoClientBuilder() {
         MongoClientSettings.Builder mongoClientSettingsBuilder = MongoClientSettings.builder();
-        if (noSqlDatabaseType == NoSqlDatabaseType.COSMOSDB) {
-            applyClientSettingsForCosmosDB(mongoClientSettingsBuilder);
-        } else {
-            applyClientSettingsForMongoDB(mongoClientSettingsBuilder);
+        switch (noSqlDatabaseType) {
+            case COSMOSDB:
+                applyClientSettingsForCosmosDB(mongoClientSettingsBuilder);
+                break;
+            case DOCUMENTDB:
+                applyClientSettingsForDocumentDB(mongoClientSettingsBuilder);
+                break;
+            case MONGODB:
+            default:
+                applyClientSettingsForMongoDB(mongoClientSettingsBuilder);
+                break;
         }
+        mongoClientSettingsBuilder.applyToConnectionPoolSettings(
+            builder -> builder.addConnectionPoolListener(customConnectionPoolListener)
+        );
         return mongoClientSettingsBuilder;
+    }
+
+    /**
+     * Applies the client settings for DocumentDB.
+     *
+     * @param mongoClientSettingsBuilder MongoClientSettings.Builder instance.
+     */
+    private void applyClientSettingsForDocumentDB(MongoClientSettings.Builder mongoClientSettingsBuilder) {
+        String documentDbConnectionString = getConnectionStringForDocumentDb();
+        ConnectionString connectionString = new ConnectionString(documentDbConnectionString);
+        mongoClientSettingsBuilder.applyConnectionString(connectionString);
+        LOGGER.info("Mongo client settings applied for DocumentDB");
+    }
+
+    /**
+     * Constructs the connection string for DocumentDB.
+     *
+     * @return : String representing the connection string.
+     */
+    private String getConnectionStringForDocumentDb() {
+        StringBuilder sb = new StringBuilder(Constants.MONGODB_PREFIX);
+        sb.append(docDbHost).append(Constants.COLON).append(docDbPort)
+                .append(Constants.FRONT_SLASH).append(docDbName)
+                .append(Constants.QUESTION_MARK)
+                .append(docDbConnectionParams);
+        LOGGER.info("Document db connection string is : {}", sb);
+        return sb.toString();
     }
 
     /**
@@ -676,6 +811,13 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
             builder.serverSelectionTimeout(serverSelectionTimeout, TimeUnit.MILLISECONDS);
             builder.hosts(servers);
         });
+        if (taggableReadPreferenceEnabled) {
+            mongoClientSettingsBuilder
+                .readPreference(ReadPreference.secondaryPreferred(new TagSet(new Tag(readPreferenceTag, "true"))));
+        } else {
+            mongoClientSettingsBuilder
+                .readPreference(MongoReadPreference.getEnum(readPreference).getReadPreference());
+        }
         LOGGER.info("Mongo client settings applied for MongoDB");
     }
 
@@ -708,5 +850,36 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     private boolean isNotNull(Integer value) {
         return (value != null);
+    }
+
+    /**
+     * Returns the log target information.
+     * @return String representing the log target.
+     */
+    protected String logTarget() {
+        switch (noSqlDatabaseType) {
+            case MONGODB:
+                return "with servers=" + servers;
+            case DOCUMENTDB:
+                return "with host=" + docDbHost + ":" + docDbPort;
+            default:
+                return "";
+        }
+    }
+
+    /**
+     * Returns the database name for the datastore.
+     * @return String representing the database name.
+     */
+    protected String getDatastoreDbName() {
+        switch (noSqlDatabaseType) {
+            case COSMOSDB:
+                return cosmosdbName;
+            case DOCUMENTDB:
+                return docDbName;
+            case MONGODB:
+            default:
+                return dbName;
+        }
     }
 }

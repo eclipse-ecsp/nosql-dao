@@ -40,13 +40,20 @@
 
 package org.eclipse.ecsp.nosqldao.mongodb;
 
+import com.mongodb.MongoCommandException;
 import com.mongodb.MongoNamespace;
+import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
 import dev.morphia.AdvancedDatastore;
 import dev.morphia.mapping.Mapper;
 import dev.morphia.query.Query;
 import dev.morphia.query.UpdateOperations;
 import dev.morphia.query.internal.MorphiaCursor;
+import org.bson.BsonDocument;
+import org.bson.BsonDouble;
+import org.bson.BsonInt32;
+import org.bson.BsonString;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
 import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
 import org.eclipse.ecsp.nosqldao.IgniteQuery;
@@ -57,6 +64,7 @@ import org.eclipse.ecsp.nosqldao.ecall.ECallDAOMongoImpl;
 import org.eclipse.ecsp.nosqldao.ecall.ECallEvent;
 import org.eclipse.ecsp.nosqldao.ecall.MockTestDAOMongoImpl;
 import org.eclipse.ecsp.nosqldao.ecall.MockTestEvent;
+import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -69,8 +77,12 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.eq;
 
 /**
@@ -100,6 +112,9 @@ public class IgniteBaseDAOMongoImplMockTest {
     private MongoCollection mongoCollection;
 
     @Mock
+    private MongoDatabase mongoDatabase;
+
+    @Mock
     private MongoNamespace namespace;
 
     @Mock
@@ -118,12 +133,13 @@ public class IgniteBaseDAOMongoImplMockTest {
      */
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         collection = testDAOMongoImpl.getOverridingCollectionName();
         Mockito.when(ds.getMapper()).thenReturn(mapper);
         Mockito.when(mapper.getCollection(Mockito.any())).thenReturn(mongoCollection);
         Mockito.when(mongoCollection.getNamespace()).thenReturn(namespace);
         Mockito.when(namespace.getCollectionName()).thenReturn(collection);
+        Mockito.when(ds.getDatabase()).thenReturn(mongoDatabase);
     }
 
     @Test
@@ -202,6 +218,131 @@ public class IgniteBaseDAOMongoImplMockTest {
     public void testDistinct() {
         IgniteQuery igniteQuery = new IgniteQuery();
         testDAOMongoImpl.distinct(igniteQuery, "id");
+    }
+
+    @Test
+    public void testSafeCreateCollection_SwallowsNamespaceExists() throws Exception {
+        // Arrange: create a real MongoCommandException with code 48 (NamespaceExists)
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.FORTY_EIGHT))
+                .append("errmsg", new BsonString("NamespaceExists"));
+        MongoCommandException namespaceExists = new MongoCommandException(
+            response, new ServerAddress("localhost", NumericConstants.MONGO_HOST));
+        Mockito.doThrow(namespaceExists).when(mongoDatabase).createCollection("testColl");
+
+        // Act: invoke private method via reflection
+        Method m = testDAOMongoImpl.getClass().getSuperclass().getDeclaredMethod("safeCreateCollection", String.class);
+        m.setAccessible(true);
+        m.invoke(testDAOMongoImpl, "testColl");
+
+        // Assert: method completed without exception and createCollection was called once
+        Mockito.verify(mongoDatabase, Mockito.times(1)).createCollection("testColl");
+    }
+
+    @Test
+    public void testSafeCreateCollection_CreatesWhenAbsent() throws Exception {
+        // Arrange: default behavior (no exception)
+
+        // Act
+        Method m = testDAOMongoImpl.getClass().getSuperclass().getDeclaredMethod("safeCreateCollection", String.class);
+        m.setAccessible(true);
+        m.invoke(testDAOMongoImpl, "newColl");
+
+        // Assert
+        Mockito.verify(mongoDatabase, Mockito.times(1)).createCollection("newColl");
+    }
+
+    @Test
+    public void testBackoff_SleepsProportionally() throws Exception {
+        // Arrange: set base backoff to 20ms
+        Field f = testDAOMongoImpl.getClass().getSuperclass().getDeclaredField("indexEnsureBackoffBaseMs");
+        f.setAccessible(true);
+        f.setLong(testDAOMongoImpl, NumericConstants.LONG_TWENTY);
+
+        Method backoff = testDAOMongoImpl.getClass().getSuperclass().getDeclaredMethod("backoff", int.class);
+        backoff.setAccessible(true);
+
+        long start = System.nanoTime();
+        // Act: attempt=2 => expected sleep ~40ms
+        backoff.invoke(testDAOMongoImpl, NumericConstants.TWO);
+        long elapsedMs = Duration.ofNanos(System.nanoTime() - start).toMillis();
+
+        // Assert: Allow some jitter; ensure at least ~30ms (less than 40 to avoid flakiness)
+        Assert.assertTrue("Backoff did not sleep long enough: " 
+            + elapsedMs + "ms", elapsedMs >= NumericConstants.THIRTY);
+    }
+
+    @Test
+    public void testEnsureIndexesWithRetry_ThrowsOnNonRetryable() throws Exception {
+        // Arrange: non-retryable MongoCommandException (e.g., code 2)
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.TWO))
+                .append("errmsg", new BsonString("SomeNonRetryableError"));
+        final MongoCommandException nonRetryable = new MongoCommandException(
+            response, new ServerAddress("localhost", NumericConstants.MONGO_HOST));
+
+        Runnable indexCreationAction = () -> { 
+            throw nonRetryable; 
+        };
+
+        Method m = testDAOMongoImpl.getClass().getSuperclass().getDeclaredMethod(
+            "ensureIndexesWithRetry", String.class, Runnable.class);
+        m.setAccessible(true);
+
+        try {
+            m.invoke(testDAOMongoImpl, "nonRetryColl", indexCreationAction);
+            Assert.fail("Expected MongoCommandException to be thrown");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Throwable cause = ite.getCause();
+            Assert.assertTrue(cause instanceof MongoCommandException);
+            Assert.assertEquals(NumericConstants.TWO, ((MongoCommandException) cause).getErrorCode());
+        }
+
+        // Verify no collection creation for non-retryable errors
+        Mockito.verify(mongoDatabase, Mockito.never()).createCollection(Mockito.anyString());
+    }
+
+    @Test
+    public void testEnsureIndexesWithRetry_ExhaustsRetriesThenThrows() throws Exception {
+        // Arrange: retryable error code 26; force small backoff and 2 attempts
+        Field attemptsField = testDAOMongoImpl.getClass().getSuperclass().getDeclaredField(
+            "indexEnsureMaxAttempts");
+        attemptsField.setAccessible(true);
+        attemptsField.setInt(testDAOMongoImpl, NumericConstants.TWO);
+
+        Field backoffField = testDAOMongoImpl.getClass().getSuperclass().getDeclaredField(
+            "indexEnsureBackoffBaseMs");
+        backoffField.setAccessible(true);
+        backoffField.setLong(testDAOMongoImpl, NumericConstants.LONG_ONE);
+
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.TWENTY_SIX))
+                .append("errmsg", new BsonString("NamespaceNotFound"));
+        final MongoCommandException retryable = new MongoCommandException(
+            response, new ServerAddress("localhost", NumericConstants.MONGO_HOST));
+
+        Runnable indexCreationAction = () -> { 
+            throw retryable; 
+        };
+
+        Method m = testDAOMongoImpl.getClass().getSuperclass().getDeclaredMethod(
+            "ensureIndexesWithRetry", String.class, Runnable.class);
+        m.setAccessible(true);
+
+        try {
+            m.invoke(testDAOMongoImpl, "retryColl", indexCreationAction);
+            Assert.fail("Expected MongoCommandException to be thrown after exhausting retries");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Throwable cause = ite.getCause();
+            Assert.assertTrue(cause instanceof MongoCommandException);
+            Assert.assertEquals(NumericConstants.TWENTY_SIX, ((MongoCommandException) cause).getErrorCode());
+        }
+
+        // Verify collection creation was attempted once due to retry path
+        Mockito.verify(mongoDatabase, Mockito.atLeastOnce()).createCollection("retryColl");
     }
 
 }
