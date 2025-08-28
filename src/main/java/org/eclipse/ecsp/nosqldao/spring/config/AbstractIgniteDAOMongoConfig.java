@@ -434,6 +434,16 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     }
 
     /**
+     * Returns the port which a client uses to connect to DocumentDB server.
+     * OverridingPort is for supporting integration tests.
+     *
+     * @return int representing the port number.
+     */
+    protected int getDocDbPort() {
+        return (AbstractIgniteDAOMongoConfig.overridingPort != null) ? overridingPort : docDbPort;
+    }
+
+    /**
     * This method is used for Building Morphia mapping options.
     *
     * @return : AdvancedDatastore
@@ -758,7 +768,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      */
     private String getConnectionStringForDocumentDb() {
         StringBuilder sb = new StringBuilder(Constants.MONGODB_PREFIX);
-        sb.append(docDbHost).append(Constants.COLON).append(docDbPort)
+        sb.append(docDbHost).append(Constants.COLON).append(getDocDbPort())
                 .append(Constants.FRONT_SLASH).append(docDbName)
                 .append(Constants.QUESTION_MARK)
                 .append(docDbConnectionParams);

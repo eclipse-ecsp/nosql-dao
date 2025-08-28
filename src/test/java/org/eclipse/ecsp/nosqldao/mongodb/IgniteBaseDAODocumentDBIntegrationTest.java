@@ -62,10 +62,12 @@ import org.eclipse.ecsp.nosqldao.ecall.TestEntity2;
 import org.eclipse.ecsp.nosqldao.spring.config.IgniteDAOMongoConfigWithProps;
 import org.eclipse.ecsp.nosqldao.test.TestDAO;
 import org.eclipse.ecsp.nosqldao.test.TestEvent;
+import org.eclipse.ecsp.nosqldao.utils.EmbeddedMongoDB;
 import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -101,7 +103,11 @@ import static org.junit.Assert.assertNotNull;
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class })
 @TestPropertySource("/ignite-dao-documentdb.properties")
 public class IgniteBaseDAODocumentDBIntegrationTest {
+
     private static final String SOURCEDEVICEID = "sourceDeviceId";
+
+    @ClassRule
+    public static EmbeddedMongoDB embeddedMongoDB = new EmbeddedMongoDB();
 
     @Autowired
     private EcallDAO ecallDao;
