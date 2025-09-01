@@ -140,6 +140,9 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
     private static final String FALSE = "false";
     private static final String EXCEPTION_MESSAGE = "Exception while accessing a field. Exception is: {}";
     private static final String FIELD_UPDATED_WITH_VALUE = "Field: {} updated with new value: {}";
+    private static final int INDEX_OPTIONS_CONFLICT_ERROR_CODE = 85;
+    private static final String INDEX_ALREADY_EXISTS_ERROR_MESSAGE = "Index already exists";
+    private static final String INDEX_OPTIONS_CONFLICT_CODE_NAME = "IndexOptionsConflict";
 
     /**
      * The Mongo datastore.
@@ -290,23 +293,12 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         updatesTranslator = new UpdatesTranslatorMorphiaImpl();
         String overridingCollection = getOverridingCollectionName();
         if (StringUtils.isEmpty(overridingCollection)) {
-            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
-                ensureIndexesWithRetryForEntityClass();
-            } else {
-                mongoDatastore.ensureIndexes(entityClass);
-            }
-            if (diagnosticMongoReporterEnabled) {
-                collection = mongoDatastore.getMapper().getCollection(entityClass);
-            }
+            collection = mongoDatastore.getMapper().getCollection(entityClass);
+            ensureIndexesWithRetryForEntityClass(collection);
         } else {
             EntityModel model = mongoDatastore.getMapper().getEntityModel(entityClass);
             IndexHelper indexHelper = new IndexHelper(mongoDatastore.getMapper());
-            if (noSqlDatabaseType == NoSqlDatabaseType.DOCUMENTDB) {
-                ensureIndexesWithRetryForOverride(indexHelper, model, overridingCollection);
-            } else {
-                indexHelper.createIndex(
-                    mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass), model);
-            }
+            createIndexesWithRetryForOverride(indexHelper, model, overridingCollection);
             if (diagnosticMongoReporterEnabled) {
                 collection = mongoDatastore.getDatabase().getCollection(overridingCollection);
             }
@@ -367,7 +359,9 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                 return;
             } catch (MongoCommandException mce) {
                 int code = mce.getErrorCode();
-                boolean retryable = code == NumericConstants.TWENTY_SIX || code == NumericConstants.EIGHTY_FIVE;
+                boolean retryable = code == NumericConstants.TWENTY_SIX 
+                    || (code == NumericConstants.EIGHTY_FIVE 
+                        && !INDEX_OPTIONS_CONFLICT_CODE_NAME.equals(mce.getErrorCodeName()));
                 if (retryable && attempt < MAX_ATTEMPTS - 1) {
                     attempt++;
                     LOGGER.warn("Index creation failed for {} with code {}; "
@@ -386,9 +380,8 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
      * Ensure indexes for entity class with retry if collection isn't present yet.
      * Concurrency-safe ensure indexes with catch-and-retry if collection creation races across pods.
      */
-    private void ensureIndexesWithRetryForEntityClass() {
-        MongoCollection<E> coll = mongoDatastore.getMapper().getCollection(entityClass);
-        String collName = coll.getNamespace().getCollectionName();
+    private void ensureIndexesWithRetryForEntityClass(@SuppressWarnings("rawtypes") MongoCollection collection) {
+        String collName = collection.getNamespace().getCollectionName();
         ensureIndexesWithRetry(collName, () -> mongoDatastore.ensureIndexes(entityClass));
     }
 
@@ -399,12 +392,31 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
      * @param model the entity model
      * @param overridingCollection the name of the overriding collection
      */
-    private void ensureIndexesWithRetryForOverride(IndexHelper indexHelper, 
+    private void createIndexesWithRetryForOverride(IndexHelper indexHelper, 
             EntityModel model, String overridingCollection) {
-        ensureIndexesWithRetry(
-            overridingCollection,
-            () -> indexHelper.createIndex(
-                mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass), model));
+        try {
+            ensureIndexesWithRetry(
+                overridingCollection,
+                () -> indexHelper.createIndex(
+                    mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass), model));
+        } catch (MongoCommandException mce) {
+            int code = mce.getErrorCode();
+            String errorMessage = mce.getErrorMessage();
+            String codeName = mce.getErrorCodeName();
+
+            if (code == INDEX_OPTIONS_CONFLICT_ERROR_CODE 
+                && INDEX_OPTIONS_CONFLICT_CODE_NAME.equals(codeName) 
+                && errorMessage.contains(INDEX_ALREADY_EXISTS_ERROR_MESSAGE)) {
+                LOGGER.warn("Index creation for collection {} failed due to existing index with different options " 
+                            + "(error code {}). " 
+                            + "This is expected when index definitions have been updated. "
+                            + "Continuing with existing index. " 
+                            + "Drop the current index in database to recreate with new definition. Error: {}",
+                           overridingCollection, code, errorMessage);
+            } else {
+                throw mce;
+            }
+        }
     }
 
     /**
