@@ -47,6 +47,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.concurrent.TimeUnit;
@@ -62,9 +63,12 @@ public class AbstractIgniteDAOMongoConfigTest {
     @InjectMocks
     AbstractIgniteDAOMongoConfig igniteDAOMongoConfig = new IgniteDAOMongoConfigWithProps();
 
+    @Mock
+    private CustomConnectionPoolListener customConnectionPoolListener;
+
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
@@ -83,6 +87,7 @@ public class AbstractIgniteDAOMongoConfigTest {
         igniteDAOMongoConfig.maxWaitTime = NumericConstants.SIXTY_K;
         igniteDAOMongoConfig.hosts = "localhost";
         igniteDAOMongoConfig.maintenanceInitialDelay = NumericConstants.THIRTY_K;
+        igniteDAOMongoConfig.readPreference = "secondaryPreferred";
         igniteDAOMongoConfig.noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
         MongoClientSettings.Builder mongoClientSettingsBuilder = igniteDAOMongoConfig
                 .createMongoClientSettingsBuilder();
@@ -114,6 +119,7 @@ public class AbstractIgniteDAOMongoConfigTest {
         igniteDAOMongoConfig.hosts = "localhost";
         igniteDAOMongoConfig.maxConnectionsPerHost = NumericConstants.TWO;
         igniteDAOMongoConfig.noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
+        igniteDAOMongoConfig.readPreference = "secondaryPreferred";
         igniteDAOMongoConfig.morphiaConverters = "org.eclipse.ecsp.nosqldao.mongodb.BytesBufferConverter";
         MongoClientSettings.Builder mongoClientSettingsBuilder = igniteDAOMongoConfig
                 .createMongoClientSettingsBuilder();
@@ -145,12 +151,12 @@ public class AbstractIgniteDAOMongoConfigTest {
         igniteDAOMongoConfig.hosts = "localhost";
         igniteDAOMongoConfig.maxConnectionsPerHost = NumericConstants.TWO;
         igniteDAOMongoConfig.noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
+        igniteDAOMongoConfig.readPreference = "secondaryPreferred";
         igniteDAOMongoConfig.morphiaConverters = "org.eclipse.ecsp.nosqldao.mongodb.BytesBufferConvert";
         MongoClientSettings.Builder mongoClientSettingsBuilder = igniteDAOMongoConfig
                 .createMongoClientSettingsBuilder();
         Assert.assertEquals(NumericConstants.TWO, mongoClientSettingsBuilder.build()
                 .getConnectionPoolSettings().getMaxConnecting());
-
     }
 
     @Test
@@ -165,5 +171,31 @@ public class AbstractIgniteDAOMongoConfigTest {
         igniteDAOMongoConfig.readPreference = "secondaryPreferred";
         igniteDAOMongoConfig.noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
         assertThrows(RuntimeException.class, () -> igniteDAOMongoConfig.getDatastore());
+    }
+
+    @Test
+    public void testGetDatastoreDbNameForMongoDb() throws Exception {
+        igniteDAOMongoConfig.dbName = "mongoDb";
+        igniteDAOMongoConfig.docDbName = "docDb";
+        igniteDAOMongoConfig.noSqlDatabaseType = NoSqlDatabaseType.MONGODB;
+
+        java.lang.reflect.Method m = AbstractIgniteDAOMongoConfig.class.getDeclaredMethod("getDatastoreDbName");
+        m.setAccessible(true);
+        String name = (String) m.invoke(igniteDAOMongoConfig);
+
+        assertEquals("mongoDb", name);
+    }
+
+    @Test
+    public void testGetDatastoreDbNameForDocumentDb() throws Exception {
+        igniteDAOMongoConfig.dbName = "mongoDb";
+        igniteDAOMongoConfig.docDbName = "docDb";
+        igniteDAOMongoConfig.noSqlDatabaseType = NoSqlDatabaseType.DOCUMENTDB;
+
+        java.lang.reflect.Method m = AbstractIgniteDAOMongoConfig.class.getDeclaredMethod("getDatastoreDbName");
+        m.setAccessible(true);
+        String name = (String) m.invoke(igniteDAOMongoConfig);
+
+        assertEquals("docDb", name);
     }
 }

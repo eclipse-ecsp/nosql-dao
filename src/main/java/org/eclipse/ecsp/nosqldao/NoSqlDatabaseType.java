@@ -53,7 +53,11 @@ public enum NoSqlDatabaseType {
     /**
      * CosmosDB database type.
      */
-    COSMOSDB("cosmosDB");
+    COSMOSDB("cosmosDB"),
+    /**
+     * DocumentDB database type.
+     */
+    DOCUMENTDB("documentDB");
 
     /**
      * The database type.
@@ -83,6 +87,9 @@ public enum NoSqlDatabaseType {
                 break;
             case "cosmosDB":
                 dbTypeEnum = NoSqlDatabaseType.COSMOSDB;
+                break;
+            case "documentDB":
+                dbTypeEnum = NoSqlDatabaseType.DOCUMENTDB;
                 break;
             default:
                 throw new UnsupportedDatabaseTypeException("Unsupported database type : " + dbType);

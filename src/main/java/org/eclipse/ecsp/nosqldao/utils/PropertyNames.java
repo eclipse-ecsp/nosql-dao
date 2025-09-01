@@ -212,6 +212,58 @@ public abstract class PropertyNames {
     public static final String COSMOSDB_NAME = "cosmosdb.name";
 
     /**
+     * NoSQL database type for DocumentDB property name.
+     */
+    public static final String DOCUMENTDB_NAME = "documentdb.name";
+
+    /**
+     * DocumentDB auth database property name.
+     */
+    public static final String DOCUMENTDB_AUTH_DB = "documentdb.auth.db";
+
+    /**
+     * DocumentDB connection string property name.
+     */
+    public static final String DOCUMENTDB_PORT = "documentdb.port";
+
+    /**
+     * DocumentDB host property name.
+     */
+    public static final String DOCUMENTDB_HOST = "documentdb.host";
+
+    /**
+     * DocumentDB username property name.
+     */
+    public static final String DOCUMENTDB_USERNAME = "documentdb.username";
+
+    /**
+     * DocumentDB password property name.
+     */
+    public static final String DOCUMENTDB_PASSWORD = "documentdb.password";
+
+    /**
+     * DocumentDB connection params.
+     */
+    public static final String DOCUMENTDB_CONNECTION_PARAMS = "documentdb.connection.params";
+
+    /**
+     * DocumentDB default connection params.
+     */
+    public static final String DOCUMENTDB_DEFAULT_CONNECTION_PARAMS = 
+        "tls=true&authenticationMechanism=SCRAM-SHA-1&retryWrites=false"
+            + "&readpreference=secondaryPreferred";
+
+    /**
+     * DocumentDB index ensure retry max attempts property name.
+     */
+    public static final String DOCUMENTDB_INDEX_ENSURE_MAX_ATTEMPTS = "documentdb.index.ensure.maxAttempts";
+
+    /**
+     * DocumentDB index ensure backoff base milliseconds property name.
+     */
+    public static final String DOCUMENTDB_INDEX_ENSURE_BACKOFF_BASE_MS = "documentdb.index.ensure.backoffBaseMs";
+
+    /**
      * Private constructor to prevent instantiation.
      */
     private PropertyNames() {
