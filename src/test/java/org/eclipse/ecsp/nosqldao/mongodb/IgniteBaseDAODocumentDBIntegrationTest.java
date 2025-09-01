@@ -98,7 +98,6 @@ import static org.junit.Assert.assertNotNull;
 /**
  * Test Class for IgniteBaseDAODocumentDB operations with DocumentDB. 
  */
-@Ignore
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = { IgniteDAOMongoConfigWithProps.class })
 @TestPropertySource("/ignite-dao-documentdb.properties")
