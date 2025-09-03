@@ -588,11 +588,9 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         return MetricsUtil.observeIfEnabled(metricsInitialized, requestLatencyHisto,
                 requestCounter, requestGauge, () -> {
                     List<E> entitiesList = Arrays.asList(entities);
-                    List<E> savedEntities = new ArrayList<>();
-                    entitiesList.parallelStream().forEach(entity ->
-                            savedEntities.add(save(entity))
-                    );
-                    return savedEntities;
+                    return entitiesList.parallelStream()
+                        .map(this::save)
+                        .toList();
                 }, () ->
                         new String[] {serviceName, Constants.OPERATION_TYPE_SAVE,
                             entityClassName, FALSE, Constants.FULL_QUERY_NA}
