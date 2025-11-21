@@ -89,7 +89,7 @@
         <morphia.version>2.2.3</morphia.version>
         <embedded.mongo.version>3.4.3</embedded.mongo.version>
         <maven.surefire.version>2.18.1</maven.surefire.version>
-        <spring.test.version>6.1.14</spring.test.version>
+        <spring.test.version>7.0.1</spring.test.version>
 		<spring-boot-starter>3.3.3</spring-boot-starter>
         <checkstyle.version>10.13.0</checkstyle.version>
         <maven.checkstyle.version>3.3.1</maven.checkstyle.version>
