@@ -107,7 +107,7 @@
         <jacoco.ut.execution.data.file>${project.build.directory}/coverage-reports/jacoco-ut.exec</jacoco.ut.execution.data.file>
         <commons.io.version>2.16.1</commons.io.version>
         <reactor.core.version>3.3.10.RELEASE</reactor.core.version>
-        <snakeyaml.version>2.0</snakeyaml.version>
+        <snakeyaml.version>2.5</snakeyaml.version>
         <awaitility.version>4.2.1</awaitility.version>
         <java.17.options>
             --add-opens=java.base/java.io=ALL-UNNAMED
