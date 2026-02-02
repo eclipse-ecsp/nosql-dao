@@ -84,7 +84,7 @@
         <java.version>17</java.version>
 	    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.13.2</junit.version>
-        <utils.version>utils-1.2.SPRING-20260130.091053-1</utils.version>
+        <utils.version>1.2.SPRING-SNAPSHOT</utils.version>
         <testcontainers.version>1.18.3</testcontainers.version>
         <morphia.version>2.2.3</morphia.version>
         <embedded.mongo.version>3.4.3</embedded.mongo.version>
@@ -124,6 +124,19 @@
             org/eclipse/ecsp/dao/NoSqlDatabaseType.java
 	    </sonar.coverage.exclusions>
 	</properties>
+
+    <repositories>
+        <repository>
+                <id>org.sonatype.central</id>
+                <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+                <releases>
+                    <enabled>false</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>true</enabled>
+                </snapshots>
+        </repository>
+    </repositories>
 
     <pluginRepositories>
         <pluginRepository>
