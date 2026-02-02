@@ -42,7 +42,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.eclipse.ecsp</groupId>
 	<artifactId>nosql-dao</artifactId>
-	<version>1.3-SNAPSHOT</version>
+	<version>1.3.SPRING-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>NoSQL DAO</name>
@@ -84,13 +84,13 @@
         <java.version>17</java.version>
 	    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.13.2</junit.version>
-        <utils.version>1.1.1</utils.version>
+        <utils.version>1.2.SPRING-SNAPSHOT</utils.version>
         <testcontainers.version>1.18.3</testcontainers.version>
         <morphia.version>2.2.3</morphia.version>
         <embedded.mongo.version>3.4.3</embedded.mongo.version>
         <maven.surefire.version>2.18.1</maven.surefire.version>
-        <spring.test.version>6.1.14</spring.test.version>
-		<spring-boot-starter>3.3.3</spring-boot-starter>
+        <spring.test.version>7.0.3</spring.test.version>
+		<spring-boot-starter>4.0.2</spring-boot-starter>
         <checkstyle.version>10.13.0</checkstyle.version>
         <maven.checkstyle.version>3.3.1</maven.checkstyle.version>
         <checkstyle.config.location>${project.basedir}/checkstyle.xml</checkstyle.config.location>
