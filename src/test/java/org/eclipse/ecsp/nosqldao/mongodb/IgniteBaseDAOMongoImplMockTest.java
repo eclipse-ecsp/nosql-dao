@@ -83,7 +83,6 @@ import java.time.Duration;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Matchers.eq;
 
 /**
  * Test class for IgniteBaseDAOMongoImpl.
@@ -132,8 +131,14 @@ public class IgniteBaseDAOMongoImplMockTest {
      * Setup method.
      */
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
+        
+        // Manually inject queryTranslator mock using reflection for Java 25 compatibility
+        Field queryTranslatorField = testDAOMongoImpl.getClass().getSuperclass().getDeclaredField("queryTranslator");
+        queryTranslatorField.setAccessible(true);
+        queryTranslatorField.set(testDAOMongoImpl, queryTranslator);
+        
         collection = testDAOMongoImpl.getOverridingCollectionName();
         Mockito.when(ds.getMapper()).thenReturn(mapper);
         Mockito.when(mapper.getCollection(Mockito.any())).thenReturn(mongoCollection);
