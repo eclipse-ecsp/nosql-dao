@@ -85,10 +85,10 @@
 	    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>4.13.2</junit.version>
         <utils.version>1.2.SPRING-SNAPSHOT</utils.version>
-        <testcontainers.version>1.18.3</testcontainers.version>
+        <testcontainers.version>2.0.3</testcontainers.version>
         <morphia.version>2.2.3</morphia.version>
         <embedded.mongo.version>3.4.3</embedded.mongo.version>
-        <maven.surefire.version>2.18.1</maven.surefire.version>
+        <maven.surefire.version>3.5.4</maven.surefire.version>
         <spring.test.version>7.0.3</spring.test.version>
 		<spring-boot-starter>4.0.2</spring-boot-starter>
         <checkstyle.version>10.13.0</checkstyle.version>
@@ -265,7 +265,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
             <exclusions>
@@ -277,7 +277,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>mongodb</artifactId>
+            <artifactId>testcontainers-mongodb</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
     	    <exclusions>
@@ -428,7 +428,8 @@
                 <configuration>
                     <argLine>${surefireArgLine} ${java.17.options}</argLine>
                     <threadCount>1</threadCount>
-                    <forkMode>pertest</forkMode>
+                    <reuseForks>false</reuseForks>
+                    <forkCount>1</forkCount>
                     <excludes>
                         <exclude>**/IgniteBaseDAOCosmosDBIntegrationTest.java</exclude>
                     </excludes>
