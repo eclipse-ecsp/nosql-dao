@@ -89,8 +89,8 @@
         <morphia.version>2.2.3</morphia.version>
         <embedded.mongo.version>3.4.3</embedded.mongo.version>
         <maven.surefire.version>3.5.4</maven.surefire.version>
-        <spring.test.version>7.0.3</spring.test.version>
-		<spring-boot-starter>4.0.2</spring-boot-starter>
+        <spring.test.version>7.0.5</spring.test.version>
+		<spring-boot-starter>4.0.3</spring-boot-starter>
         <checkstyle.version>10.13.0</checkstyle.version>
         <maven.checkstyle.version>3.3.1</maven.checkstyle.version>
         <checkstyle.config.location>${project.basedir}/checkstyle.xml</checkstyle.config.location>
