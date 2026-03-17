@@ -85,12 +85,12 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
     /**
      * List of elemMatch filters.
      */
-    private List<Filter> elemMatchFilterList = new ArrayList<>();
+    private final ThreadLocal<List<Filter>> elemMatchFilterList = ThreadLocal.withInitial(ArrayList::new);
 
     /**
      * Find options.
      */
-    private FindOptions findOptions = new FindOptions();
+    private final ThreadLocal<FindOptions> findOptions = ThreadLocal.withInitial(FindOptions::new);
 
     /**
      * Default constructor.
@@ -125,7 +125,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
         } else {
             query = datastore.createQuery(entityClass).disableValidation();
         }
-        elemMatchFilterList.clear();
+        elemMatchFilterList.get().clear();
         List<IgniteCriteriaGroup> igniteCriteriaGroups = from.getCriteriaGroups();
         LopContent lopContent = from.getLopContent();
         if (LopContent.MIXED.equals(lopContent)) {
@@ -136,7 +136,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
             createQueryForAndonlyLopContent(query, igniteCriteriaGroups);
         } else {
             Filter criteriaContainerFilter = createCriteriaContainer(igniteCriteriaGroups.get(0));
-            elemMatchFilterList.add(criteriaContainerFilter);
+            elemMatchFilterList.get().add(criteriaContainerFilter);
             query.filter(criteriaContainerFilter);
         }
 
@@ -167,7 +167,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
         for (IgniteCriteriaGroup igniteCriteriaGroup : igniteCriteriaGroups) {
             criteriaContainers.add(createCriteriaContainer(igniteCriteriaGroup));
         }
-        elemMatchFilterList.add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
+        elemMatchFilterList.get().add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
         query.filter(Filters.and(
                 criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
     }
@@ -183,7 +183,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
         for (IgniteCriteriaGroup igniteCriteriaGroup : igniteCriteriaGroups) {
             criteriaContainers.add(createCriteriaContainer(igniteCriteriaGroup));
         }
-        elemMatchFilterList.add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
+        elemMatchFilterList.get().add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
         query.filter(Filters.or(
                 criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
     }
@@ -209,7 +209,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
                 criteriaList.add(Filters.and(andCriteriaList.toArray(new Filter[andCriteriaList.size()])));
             }
         }
-        elemMatchFilterList.add(Filters.or(criteriaList.toArray(new Filter[criteriaList.size()])));
+        elemMatchFilterList.get().add(Filters.or(criteriaList.toArray(new Filter[criteriaList.size()])));
         query.filter(Filters.or(criteriaList.toArray(new Filter[criteriaList.size()])));
         return query;
     }
@@ -423,8 +423,8 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
             case ELEMENT_MATCH:
                 // prepare morphia filter list
                 translate((IgniteQuery) val, Optional.empty());
-                criteria = Filters.elemMatch(field, elemMatchFilterList.toArray(
-                        new Filter[elemMatchFilterList.size()]));
+                criteria = Filters.elemMatch(field, elemMatchFilterList.get().toArray(
+                        new Filter[elemMatchFilterList.get().size()]));
                 break;
             case NEAR:
                 if (val instanceof Coordinate coordinates) {
@@ -449,10 +449,8 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @return FindOptions : FindOptions
      */
     public FindOptions getFindOptions() {
-        if (findOptions != null) {
-            return findOptions;
-        }
-        return new FindOptions();
+        FindOptions options = findOptions.get();
+        return options != null ? options : new FindOptions();
     }
 
     /**
@@ -461,6 +459,6 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @param findOptions : FindOptions
      */
     private void setFindOptions(FindOptions findOptions) {
-        this.findOptions = findOptions;
+        this.findOptions.set(findOptions);
     }
 }
