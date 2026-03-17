@@ -141,7 +141,6 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
     private static final String EXCEPTION_MESSAGE = "Exception while accessing a field. Exception is: {}";
     private static final String FIELD_UPDATED_WITH_VALUE = "Field: {} updated with new value: {}";
     private static final int INDEX_OPTIONS_CONFLICT_ERROR_CODE = 85;
-    private static final String INDEX_ALREADY_EXISTS_ERROR_MESSAGE = "Index already exists";
     private static final String INDEX_OPTIONS_CONFLICT_CODE_NAME = "IndexOptionsConflict";
 
     /**
@@ -405,8 +404,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
             String codeName = mce.getErrorCodeName();
 
             if (code == INDEX_OPTIONS_CONFLICT_ERROR_CODE 
-                && INDEX_OPTIONS_CONFLICT_CODE_NAME.equals(codeName) 
-                && errorMessage.contains(INDEX_ALREADY_EXISTS_ERROR_MESSAGE)) {
+                && INDEX_OPTIONS_CONFLICT_CODE_NAME.equals(codeName)) {
                 LOGGER.warn("Index creation for collection {} failed due to existing index with different options " 
                             + "(error code {}). " 
                             + "This is expected when index definitions have been updated. "
