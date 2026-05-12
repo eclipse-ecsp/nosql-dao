@@ -40,7 +40,7 @@
 
 package org.eclipse.ecsp.nosqldao.mongodb;
 
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import org.eclipse.ecsp.nosqldao.ecall.ECallEvent;
 import org.eclipse.ecsp.nosqldao.ecall.EcallDAO;
 import org.eclipse.ecsp.nosqldao.ecall.MockTestDAOMongoImpl;
@@ -82,7 +82,7 @@ public class IgniteBaseDAOShardKeyIntegrationTest {
     private MockTestDAOMongoImpl mockDao;
 
     @Autowired
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     /** Setup method. */
     @Before

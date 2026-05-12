@@ -43,8 +43,8 @@ package org.eclipse.ecsp.nosqldao.mongodb;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.ListIndexesIterable;
 import com.mongodb.client.MongoCollection;
-import dev.morphia.AdvancedDatastore;
-import dev.morphia.query.experimental.filters.Filters;
+import dev.morphia.Datastore;
+import dev.morphia.query.filters.Filters;
 import org.bson.Document;
 import org.eclipse.ecsp.nosqldao.Coordinate;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
@@ -101,7 +101,7 @@ public class IgniteBaseDAOMongoIntegrationWithDynamicCollectionTest {
     private TestDAO dao;
 
     @Autowired
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     private String customCollection = "customEcall";
 

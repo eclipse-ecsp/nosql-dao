@@ -45,8 +45,7 @@ import com.mongodb.MongoNamespace;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import dev.morphia.AdvancedDatastore;
-import dev.morphia.mapping.Mapper;
+import dev.morphia.Datastore;
 import dev.morphia.query.Query;
 import dev.morphia.query.UpdateOperations;
 import dev.morphia.query.internal.MorphiaCursor;
@@ -54,6 +53,7 @@ import org.bson.BsonDocument;
 import org.bson.BsonDouble;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
+import org.bson.Document;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
 import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
 import org.eclipse.ecsp.nosqldao.IgniteQuery;
@@ -102,10 +102,7 @@ public class IgniteBaseDAOMongoImplMockTest {
     private ECallDAOMongoImpl testEcallDAOMongoImpl;
 
     @Mock
-    private AdvancedDatastore ds;
-
-    @Mock
-    private Mapper mapper;
+    private Datastore ds;
 
     @Mock
     private MongoCollection mongoCollection;
@@ -140,8 +137,7 @@ public class IgniteBaseDAOMongoImplMockTest {
         queryTranslatorField.set(testDAOMongoImpl, queryTranslator);
         
         collection = testDAOMongoImpl.getOverridingCollectionName();
-        Mockito.when(ds.getMapper()).thenReturn(mapper);
-        Mockito.when(mapper.getCollection(Mockito.any())).thenReturn(mongoCollection);
+        Mockito.when(ds.getCollection(Mockito.any())).thenReturn(mongoCollection);
         Mockito.when(mongoCollection.getNamespace()).thenReturn(namespace);
         Mockito.when(namespace.getCollectionName()).thenReturn(collection);
         Mockito.when(ds.getDatabase()).thenReturn(mongoDatabase);
@@ -362,36 +358,27 @@ public class IgniteBaseDAOMongoImplMockTest {
         MongoCommandException indexOptionsConflict = new MongoCommandException(
             response, new ServerAddress("localhost", NumericConstants.MONGO_HOST));
 
-        // Mock the IndexHelper and EntityModel
-        dev.morphia.annotations.builders.IndexHelper indexHelper = Mockito.mock(
-            dev.morphia.annotations.builders.IndexHelper.class);
-        dev.morphia.mapping.codec.pojo.EntityModel model = Mockito.mock(
-            dev.morphia.mapping.codec.pojo.EntityModel.class);
-        
-        // Configure the mock to throw IndexOptionsConflict exception
-        Mockito.doThrow(indexOptionsConflict)
-               .when(indexHelper)
-               .createIndex(Mockito.any(MongoCollection.class), Mockito.eq(model));
-
-        // Mock the collection return
+        // Mock the collection returned for the override collection name
         MongoCollection mockCollection = Mockito.mock(MongoCollection.class);
         Mockito.when(mongoDatabase.getCollection(Mockito.eq("testOverrideCollection"), Mockito.any(Class.class)))
                .thenReturn(mockCollection);
 
-        // Act: invoke the private method via reflection
+        // Mock createIndex to throw IndexOptionsConflict
+        Mockito.doThrow(indexOptionsConflict)
+               .when(mockCollection)
+               .createIndex(Mockito.any(Document.class), Mockito.any(com.mongodb.client.model.IndexOptions.class));
+
+        // Act: invoke the private method via reflection with new signature
         Method m = testDAOMongoImpl.getClass().getSuperclass()
-                                  .getDeclaredMethod("createIndexesWithRetryForOverride", 
-                                                   dev.morphia.annotations.builders.IndexHelper.class,
-                                                   dev.morphia.mapping.codec.pojo.EntityModel.class,
-                                                   String.class);
+                                  .getDeclaredMethod("createIndexesWithRetryForOverride", String.class);
         m.setAccessible(true);
 
         // This should not throw an exception - it should handle the IndexOptionsConflict gracefully
-        m.invoke(testDAOMongoImpl, indexHelper, model, "testOverrideCollection");
+        m.invoke(testDAOMongoImpl, "testOverrideCollection");
 
         // Verify that createIndex was called once
-        Mockito.verify(indexHelper, Mockito.times(1))
-               .createIndex(Mockito.any(MongoCollection.class), Mockito.eq(model));
+        Mockito.verify(mockCollection, Mockito.times(1))
+               .createIndex(Mockito.any(Document.class), Mockito.any(com.mongodb.client.model.IndexOptions.class));
     }
 
     @Test
@@ -406,32 +393,23 @@ public class IgniteBaseDAOMongoImplMockTest {
         MongoCommandException otherException = new MongoCommandException(
             response, new ServerAddress("localhost", NumericConstants.MONGO_HOST));
 
-        // Mock the IndexHelper and EntityModel
-        dev.morphia.annotations.builders.IndexHelper indexHelper = Mockito.mock(
-            dev.morphia.annotations.builders.IndexHelper.class);
-        dev.morphia.mapping.codec.pojo.EntityModel model = Mockito.mock(
-            dev.morphia.mapping.codec.pojo.EntityModel.class);
-        
-        // Configure the mock to throw the exception
-        Mockito.doThrow(otherException)
-               .when(indexHelper)
-               .createIndex(Mockito.any(MongoCollection.class), Mockito.eq(model));
-
-        // Mock the collection return
+        // Mock the collection returned for the override collection name
         MongoCollection mockCollection = Mockito.mock(MongoCollection.class);
         Mockito.when(mongoDatabase.getCollection(Mockito.eq("testOverrideCollection"), Mockito.any(Class.class)))
                .thenReturn(mockCollection);
 
+        // Configure the mock to throw the exception
+        Mockito.doThrow(otherException)
+               .when(mockCollection)
+               .createIndex(Mockito.any(Document.class), Mockito.any(com.mongodb.client.model.IndexOptions.class));
+
         // Act & Assert: invoke the private method via reflection and expect exception
         Method m = testDAOMongoImpl.getClass().getSuperclass()
-                                  .getDeclaredMethod("createIndexesWithRetryForOverride", 
-                                                   dev.morphia.annotations.builders.IndexHelper.class,
-                                                   dev.morphia.mapping.codec.pojo.EntityModel.class,
-                                                   String.class);
+                                  .getDeclaredMethod("createIndexesWithRetryForOverride", String.class);
         m.setAccessible(true);
 
         try {
-            m.invoke(testDAOMongoImpl, indexHelper, model, "testOverrideCollection");
+            m.invoke(testDAOMongoImpl, "testOverrideCollection");
             Assert.fail("Expected MongoCommandException to be thrown for non-IndexOptionsConflict errors");
         } catch (java.lang.reflect.InvocationTargetException ite) {
             Throwable cause = ite.getCause();
@@ -440,8 +418,8 @@ public class IgniteBaseDAOMongoImplMockTest {
         }
 
         // Verify that createIndex was called once
-        Mockito.verify(indexHelper, Mockito.times(1))
-               .createIndex(Mockito.any(MongoCollection.class), Mockito.eq(model));
+        Mockito.verify(mockCollection, Mockito.times(1))
+               .createIndex(Mockito.any(Document.class), Mockito.any(com.mongodb.client.model.IndexOptions.class));
     }
 
 }

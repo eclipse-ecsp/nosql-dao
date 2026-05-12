@@ -48,13 +48,11 @@ import com.mongodb.ServerAddress;
 import com.mongodb.Tag;
 import com.mongodb.TagSet;
 import com.mongodb.client.MongoClient;
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
+import dev.morphia.config.ManualMorphiaConfig;
+import dev.morphia.config.MorphiaConfig;
 import dev.morphia.mapping.DiscriminatorFunction;
 import dev.morphia.mapping.MapperOptions;
-import dev.morphia.mapping.conventions.ConfigureProperties;
-import dev.morphia.mapping.conventions.FieldDiscovery;
-import dev.morphia.mapping.conventions.MorphiaConvention;
-import dev.morphia.mapping.conventions.MorphiaDefaultsConvention;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.codecs.Codec;
@@ -73,6 +71,7 @@ import org.springframework.context.annotation.Bean;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -370,9 +369,9 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     protected volatile MongoClient mongoClient = null;
 
     /**
-     * Morphia mapper options.
+     * Morphia config.
      */
-    protected MapperOptions mapperOptions;
+    protected MorphiaConfig morphiaConfig;
 
     /**
      * Morphia codec registry.
@@ -449,9 +448,8 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     * @return : AdvancedDatastore
     */
     @Bean
-    @SuppressWarnings("removal")
-    public AdvancedDatastore mongoDatastore() {
-        AdvancedDatastore datastore = null;
+    public Datastore mongoDatastore() {
+        Datastore datastore = null;
         try {
             //creating code registry for custom codec-providers
             if (codecRegistry == null) {
@@ -459,35 +457,27 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
                 codecRegistry = getCodecRegistryFromProp();
             }
 
-            //MapperOptions can be set via methods or fields. In 2.0 version of morphia only one can be used, 
-            //in future releases an option of using both options will be provided
-            LOGGER.info("Building Morphia mapping options. Property discovery enabled via FIELDS, "
+            LOGGER.info("Building Morphia config. Property discovery enabled via FIELDS, "
                     + "with discriminator key as : {}", Constants.DISCRIMINATOR_KEY);
-            MapperOptions.Builder mapperOptionsBuilder = MapperOptions.builder();
-            mapperOptionsBuilder.propertyDiscovery(MapperOptions.PropertyDiscovery.FIELDS);
-            mapperOptionsBuilder.discriminatorKey(discriminatorKey);
-            mapperOptionsBuilder.discriminator(DiscriminatorFunction.className());
-            mapperOptionsBuilder.addConvention(new MorphiaDefaultsConvention());
-            mapperOptionsBuilder.addConvention(new FieldDiscovery());
-            mapperOptionsBuilder.addConvention(new ConfigureProperties());
             if (StringUtils.isNotEmpty(morphiaConventionName)) {
-                for (final String convention : this.morphiaConventionName.split(",")) {
-                    mapperOptionsBuilder.addConvention((MorphiaConvention) Class.forName(convention)
-                            .getDeclaredConstructor().newInstance());
-                }
+                LOGGER.warn("morphia.convention property is not supported in Morphia 2.5.x."
+                        + " Register conventions via ServiceLoader instead.");
             }
-            this.mapperOptions = mapperOptionsBuilder.build();
+            this.morphiaConfig = new ManualMorphiaConfig()
+                    .database(getDatastoreDbName())
+                    .propertyDiscovery(MapperOptions.PropertyDiscovery.FIELDS)
+                    .discriminatorKey(discriminatorKey)
+                    .discriminator(DiscriminatorFunction.className())
+                    .packages(Arrays.asList(mapPackages));
             datastore = getDatastore();
-            mapPackagesToDatastore(datastore);
             
             long startTime = System.currentTimeMillis();
             // From morphia 2.0 UTC will be available by default
             LOGGER.info("Morphia DataStorage : {}", 
-                    datastore.getMapper().getOptions().getDateStorage().getZone().getId());
+                    datastore.getMapper().getConfig().dateStorage().getZone().getId());
             long endTimeMorpia = System.currentTimeMillis();
             LOGGER.info("Connection time taken from Morphia in millisecs : {}", (endTimeMorpia - startTime));
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException 
-                | InvocationTargetException | NoSuchMethodException | RuntimeException e) {
+        } catch (RuntimeException e) {
             if (null != mongoClient) {
                 mongoClient.close();
             }
@@ -619,22 +609,19 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     }
 
     /**
-     * Returns the AdvancedDatastore instance.
+     * Returns the Datastore instance.
      *
-     * @return AdvancedDatastore instance.
+     * @return Datastore instance.
      */
-    @SuppressWarnings("removal")
-    protected abstract AdvancedDatastore getDatastore();
+    protected abstract Datastore getDatastore();
 
     /**
      * Maps the packages to the datastore.
-     * @param datastore AdvancedDatastore instance.
+     * @param datastore Datastore instance.
      */
-    @SuppressWarnings("removal")
-    protected void mapPackagesToDatastore(AdvancedDatastore datastore) {
-        for (String mapPackage : mapPackages) {
-            datastore.getMapper().mapPackage(mapPackage);
-        }
+    protected void mapPackagesToDatastore(Datastore datastore) {
+        // Packages are now configured via MorphiaConfig.packages() at datastore creation time.
+        // This method is retained for API compatibility only.
     }
 
     /**

@@ -46,7 +46,7 @@ import com.mongodb.MongoException;
 import com.mongodb.MongoSocketException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import dev.morphia.Morphia;
 import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
 import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
@@ -86,16 +86,13 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
      *
      * @return an instance of AdvancedDatastore
      */
-    @SuppressWarnings("removal")
     @Override
-    protected AdvancedDatastore getDatastore() {
+    protected Datastore getDatastore() {
         mongoClient = createMongoClient();
-        AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(mongoClient, 
-                getDatastoreDbName(), mapperOptions);
-        mapPackagesToDatastore(ads);
+        Datastore ads = Morphia.createDatastore(mongoClient, morphiaConfig);
         peInvocationHandler.setDatastore(ads);
-        return (AdvancedDatastore) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[] { AdvancedDatastore.class }, peInvocationHandler);
+        return (Datastore) Proxy.newProxyInstance(this.getClass().getClassLoader(),
+                new Class[] { Datastore.class }, peInvocationHandler);
     }
 
     /**
@@ -142,9 +139,8 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
     public boolean isHealthy(boolean forceToRecreateClient) {
 
         if (forceToRecreateClient && (!healthy || mongoClient == null)) {
-            AdvancedDatastore ads = (AdvancedDatastore) Morphia.createDatastore(
-                createMongoClient(), getDatastoreDbName(), mapperOptions);
-            mapPackagesToDatastore(ads);
+            Datastore ads = Morphia.createDatastore(
+                createMongoClient(), morphiaConfig);
             peInvocationHandler.setDatastore(ads);
             setHealthy(true);
         }
@@ -159,8 +155,7 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
         /**
          * AdvancedDatastore instance.
          */
-        @SuppressWarnings("removal")
-        private volatile AdvancedDatastore datastore;
+        private volatile Datastore datastore;
 
         /**
          * Invokes the specified method on the AdvancedDatastore instance.
@@ -206,8 +201,7 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
          *
          * @param datastore the AdvancedDatastore instance to set
          */
-        @SuppressWarnings("removal")
-        private void setDatastore(AdvancedDatastore datastore) {
+        private void setDatastore(Datastore datastore) {
             this.datastore = datastore;
         }
     }
