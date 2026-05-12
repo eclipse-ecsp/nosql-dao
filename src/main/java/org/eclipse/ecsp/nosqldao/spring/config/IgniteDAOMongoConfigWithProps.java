@@ -139,10 +139,13 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
     public boolean isHealthy(boolean forceToRecreateClient) {
 
         if (forceToRecreateClient && (!healthy || mongoClient == null)) {
-            Datastore ads = Morphia.createDatastore(
-                createMongoClient(), morphiaConfig);
+            MongoClient oldClient = mongoClient;
+            mongoClient = createMongoClient();
+            Datastore ads = Morphia.createDatastore(mongoClient, morphiaConfig);
             peInvocationHandler.setDatastore(ads);
-            setHealthy(true);
+            if (oldClient != null) {
+                oldClient.close();
+            }
         }
         return healthy;
     }

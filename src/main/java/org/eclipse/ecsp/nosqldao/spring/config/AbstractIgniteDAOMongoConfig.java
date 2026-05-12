@@ -457,11 +457,16 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
                 codecRegistry = getCodecRegistryFromProp();
             }
 
-            LOGGER.info("Building Morphia config. Property discovery enabled via FIELDS, "
-                    + "with discriminator key as : {}", Constants.DISCRIMINATOR_KEY);
+            LOGGER.info("Building Morphia config. Property discovery enabled via FIELDS,"
+                    + " with discriminator key as : {}", Constants.DISCRIMINATOR_KEY);
             if (StringUtils.isNotEmpty(morphiaConventionName)) {
-                LOGGER.warn("morphia.convention property is not supported in Morphia 2.5.x."
-                        + " Register conventions via ServiceLoader instead.");
+                throw new IllegalStateException(
+                    "Property 'morphia.convention' (value: '" + morphiaConventionName
+                    + "') is no longer supported in Morphia 2.5.x. "
+                    + "Custom conventions must be registered via the Java ServiceLoader mechanism: "
+                    + "create a file 'META-INF/services/dev.morphia.mapping.conventions.MorphiaConvention' "
+                    + "listing your convention implementation class(es). "
+                    + "Remove 'morphia.convention' from your configuration after migrating.");
             }
             this.morphiaConfig = new ManualMorphiaConfig()
                     .database(getDatastoreDbName())
@@ -477,7 +482,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
                     datastore.getMapper().getConfig().dateStorage().getZone().getId());
             long endTimeMorpia = System.currentTimeMillis();
             LOGGER.info("Connection time taken from Morphia in millisecs : {}", (endTimeMorpia - startTime));
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             if (null != mongoClient) {
                 mongoClient.close();
             }
@@ -619,6 +624,7 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * Maps the packages to the datastore.
      * @param datastore Datastore instance.
      */
+    @Deprecated(forRemoval = true)
     protected void mapPackagesToDatastore(Datastore datastore) {
         // Packages are now configured via MorphiaConfig.packages() at datastore creation time.
         // This method is retained for API compatibility only.

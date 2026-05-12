@@ -57,6 +57,8 @@ import dev.morphia.UpdateOptions;
 import dev.morphia.annotations.Id;
 import dev.morphia.annotations.Index;
 import dev.morphia.annotations.Indexes;
+import dev.morphia.annotations.internal.IndexHelper;
+import dev.morphia.mapping.codec.pojo.EntityModel;
 import dev.morphia.query.Query;
 import dev.morphia.query.filters.Filters;
 import dev.morphia.query.updates.UpdateOperator;
@@ -292,7 +294,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         updatesTranslator = new UpdatesTranslatorMorphiaImpl();
         String overridingCollection = getOverridingCollectionName();
         if (StringUtils.isEmpty(overridingCollection)) {
-            collection = mongoDatastore.getCollection(entityClass);
+            collection = getEntityCollection();
             ensureIndexesWithRetryForEntityClass(collection);
         } else {
             createIndexesWithRetryForOverride(overridingCollection);
@@ -375,10 +377,17 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
 
     /**
      * Ensure indexes for entity class with retry if collection isn't present yet.
+     * Replicates the pre-Morphia-2.5.2 behaviour of ensureIndexes(entityClass) by using
+     * IndexHelper directly — the same internal logic DatastoreImpl.ensureIndexes(Class) uses.
+     * This avoids casting through the Spring proxy (which only exposes the Datastore interface)
+     * while still scoping index creation to this entity class only.
      */
     private void ensureIndexesWithRetryForEntityClass(@SuppressWarnings("rawtypes") MongoCollection collection) {
         String collectionName = collection.getNamespace().getCollectionName();
-        ensureIndexesWithRetry(collectionName, () -> mongoDatastore.ensureIndexes());
+        ensureIndexesWithRetry(collectionName, () -> {
+            EntityModel entityModel = mongoDatastore.getMapper().getEntityModel(entityClass);
+            new IndexHelper(mongoDatastore.getMapper()).createIndex(collection, entityModel);
+        });
     }
 
     /**
@@ -388,30 +397,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
      */
     private void createIndexesWithRetryForOverride(String overridingCollection) {
         try {
-            ensureIndexesWithRetry(overridingCollection, () -> {
-                MongoCollection<E> col = mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass);
-                Indexes indexesAnnotation = entityClass.getAnnotation(Indexes.class);
-                if (indexesAnnotation != null) {
-                    for (Index indexDef : indexesAnnotation.value()) {
-                        Document keys = new Document();
-                        for (dev.morphia.annotations.Field field : indexDef.fields()) {
-                            keys.put(field.value(), field.type().toIndexValue());
-                        }
-                        IndexOptions indexOptions = new IndexOptions();
-                        dev.morphia.annotations.IndexOptions opts = indexDef.options();
-                        if (opts.unique()) {
-                            indexOptions.unique(true);
-                        }
-                        if (opts.sparse()) {
-                            indexOptions.sparse(true);
-                        }
-                        if (!opts.name().isEmpty()) {
-                            indexOptions.name(opts.name());
-                        }
-                        col.createIndex(keys, indexOptions);
-                    }
-                }
-            });
+            ensureIndexesWithRetry(overridingCollection, () -> createIndexesForCollection(overridingCollection));
         } catch (MongoCommandException mce) {
             int code = mce.getErrorCode();
             String errorMessage = mce.getErrorMessage();
@@ -429,6 +415,47 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                 throw mce;
             }
         }
+    }
+
+    /**
+     * Creates indexes for the given overriding collection based on @Index annotations on the entity class.
+     * Skips any index definitions with empty fields arrays.
+     *
+     * @param overridingCollection the name of the overriding collection
+     */
+    private void createIndexesForCollection(String overridingCollection) {
+        MongoCollection<E> col = mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass);
+        Indexes indexesAnnotation = entityClass.getAnnotation(Indexes.class);
+        if (indexesAnnotation != null) {
+            for (Index indexDef : indexesAnnotation.value()) {
+                Document keys = new Document();
+                for (dev.morphia.annotations.Field field : indexDef.fields()) {
+                    keys.put(field.value(), field.type().toIndexValue());
+                }
+                if (keys.isEmpty()) {
+                    LOGGER.warn("Skipping index definition with no fields on entity class {}; "
+                            + "check @Index annotation for missing 'fields' attribute.",
+                            entityClass.getName());
+                    continue;
+                }
+                IndexOptions indexOptions = new IndexOptions();
+                dev.morphia.annotations.IndexOptions opts = indexDef.options();
+                if (opts.unique()) {
+                    indexOptions.unique(true);
+                }
+                if (opts.sparse()) {
+                    indexOptions.sparse(true);
+                }
+                if (!opts.name().isEmpty()) {
+                    indexOptions.name(opts.name());
+                }
+                col.createIndex(keys, indexOptions);
+            }
+        }
+    }
+
+    private MongoCollection<E> getEntityCollection() {
+        return mongoDatastore.getCollection(entityClass);
     }
 
     /**
@@ -553,7 +580,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     if (StringUtils.isNotEmpty(dynamicCollectionName)) {
                         collectionName = dynamicCollectionName;
                     } else {
-                        collectionName = mongoDatastore.getCollection(entityClass)
+                        collectionName = getEntityCollection()
                                 .getNamespace().getCollectionName();
                     }
 
@@ -688,7 +715,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                         collection = mongoDatastore.getDatabase().getCollection(collectionName,
                                 entityClass);
                     } else {
-                        collection = mongoDatastore.getCollection(entityClass);
+                        collection = getEntityCollection();
                     }
                     UpdateResult updateResult = collection.replaceOne(query.toDocument(), entity,
                             new ReplaceOptions().upsert(true));
@@ -1209,7 +1236,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     mongoCollection = mongoDatastore.getDatabase().getCollection(collection.get(),
                             entityClass);
                 } else {
-                    mongoCollection = mongoDatastore.getCollection(entityClass);
+                    mongoCollection = getEntityCollection();
                 }
                 List<UpdateOperator> updateOperations = updatesTranslator.translate(updates,
                         collection);
@@ -1252,7 +1279,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     } else {
                         q = mongoDatastore.createQuery(entityClass).filter(Filters.eq(Constants
                                 .ID_FILTER_CONSTANT, id)).disableValidation();
-                        mongoCollection = mongoDatastore.getCollection(entityClass);
+                        mongoCollection = getEntityCollection();
                     }
                     List<UpdateOperator> updateOperations = updatesTranslator.translate(updates,
                             Optional.ofNullable(collection));
