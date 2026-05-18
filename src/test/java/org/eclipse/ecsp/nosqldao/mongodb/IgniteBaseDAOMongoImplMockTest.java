@@ -80,6 +80,7 @@ import org.mockito.junit.MockitoRule;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -100,6 +101,9 @@ public class IgniteBaseDAOMongoImplMockTest {
 
     @InjectMocks
     private ECallDAOMongoImpl testEcallDAOMongoImpl;
+
+    @InjectMocks
+    private NoIndexDAOImpl noIndexDAO;
 
     @Mock
     private Datastore ds;
@@ -420,6 +424,174 @@ public class IgniteBaseDAOMongoImplMockTest {
         // Verify that createIndex was called once
         Mockito.verify(mockCollection, Mockito.times(1))
                .createIndex(Mockito.any(Document.class), Mockito.any(com.mongodb.client.model.IndexOptions.class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testCreateIndexesForCollection_CreatesIndexFromAnnotation() throws Exception {
+        // MockTestEvent has @Indexes with vehicleId and sourceDeviceId fields; default options
+        MongoCollection mockCol = Mockito.mock(MongoCollection.class);
+        Mockito.when(mongoDatabase.getCollection(Mockito.eq(collection), Mockito.any(Class.class)))
+               .thenReturn(mockCol);
+
+        Method m = testDAOMongoImpl.getClass().getSuperclass()
+                                   .getDeclaredMethod("createIndexesForCollection", String.class);
+        m.setAccessible(true);
+        m.invoke(testDAOMongoImpl, collection);
+
+        // One @Index definition → exactly one createIndex call
+        Mockito.verify(mockCol, Mockito.times(1))
+               .createIndex(Mockito.any(Document.class),
+                            Mockito.any(com.mongodb.client.model.IndexOptions.class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testCreateIndexesForCollection_SkipsWhenNoIndexesAnnotation() throws Exception {
+        // NoIndexDAOImpl targets PlainEntity which carries no @Indexes annotation
+        MongoCollection mockCol = Mockito.mock(MongoCollection.class);
+        Mockito.when(mongoDatabase.getCollection(Mockito.eq("plainColl"), Mockito.any(Class.class)))
+               .thenReturn(mockCol);
+
+        Method m = noIndexDAO.getClass().getSuperclass()
+                             .getDeclaredMethod("createIndexesForCollection", String.class);
+        m.setAccessible(true);
+        m.invoke(noIndexDAO, "plainColl");
+
+        // No @Indexes annotation → createIndex must never be called
+        Mockito.verify(mockCol, Mockito.never())
+               .createIndex(Mockito.any(Document.class),
+                            Mockito.any(com.mongodb.client.model.IndexOptions.class));
+    }
+
+    @Test
+    public void testBuildIndexOptions_DefaultOptions() throws Exception {
+        // MockTestEvent @Index uses all-default IndexOptions (unique=false, sparse=false, name="")
+        dev.morphia.annotations.Indexes indexesAnnotation =
+                MockTestEvent.class.getAnnotation(dev.morphia.annotations.Indexes.class);
+        dev.morphia.annotations.IndexOptions opts = indexesAnnotation.value()[0].options();
+
+        Method m = testDAOMongoImpl.getClass().getSuperclass()
+                                   .getDeclaredMethod("buildIndexOptions",
+                                                      dev.morphia.annotations.IndexOptions.class);
+        m.setAccessible(true);
+        com.mongodb.client.model.IndexOptions result =
+                (com.mongodb.client.model.IndexOptions) m.invoke(testDAOMongoImpl, opts);
+
+        Assert.assertFalse(Boolean.TRUE.equals(result.isUnique()));
+        Assert.assertFalse(Boolean.TRUE.equals(result.isSparse()));
+        Assert.assertNull(result.getName());
+    }
+
+    @Test
+    public void testBuildIndexOptions_UniqueSparseName() throws Exception {
+        // SpecialIndexEntity has @Index with unique=true, sparse=true, name="myIdx"
+        dev.morphia.annotations.Indexes indexesAnnotation =
+                SpecialIndexEntity.class.getAnnotation(dev.morphia.annotations.Indexes.class);
+        dev.morphia.annotations.IndexOptions opts = indexesAnnotation.value()[0].options();
+
+        Method m = testDAOMongoImpl.getClass().getSuperclass()
+                                   .getDeclaredMethod("buildIndexOptions",
+                                                      dev.morphia.annotations.IndexOptions.class);
+        m.setAccessible(true);
+        com.mongodb.client.model.IndexOptions result =
+                (com.mongodb.client.model.IndexOptions) m.invoke(testDAOMongoImpl, opts);
+
+        Assert.assertTrue(result.isUnique());
+        Assert.assertTrue(result.isSparse());
+        Assert.assertEquals("myIdx", result.getName());
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testEnsureIndexesWithRetryForEntityClass_RetriesOnNamespaceNotFound() throws Exception {
+        // Configure 2 max attempts and minimal backoff
+        Field attemptsField = testEcallDAOMongoImpl.getClass().getSuperclass()
+                .getDeclaredField("indexEnsureMaxAttempts");
+        attemptsField.setAccessible(true);
+        attemptsField.setInt(testEcallDAOMongoImpl, NumericConstants.TWO);
+
+        Field backoffField = testEcallDAOMongoImpl.getClass().getSuperclass()
+                .getDeclaredField("indexEnsureBackoffBaseMs");
+        backoffField.setAccessible(true);
+        backoffField.setLong(testEcallDAOMongoImpl, NumericConstants.LONG_ONE);
+
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.TWENTY_SIX))
+                .append("errmsg", new BsonString("NamespaceNotFound"));
+        MongoCommandException namespaceNotFound = new MongoCommandException(
+                response, new ServerAddress("localhost", NumericConstants.MONGO_HOST));
+
+        // Make the mapper throw the retryable exception so the lambda always fails
+        dev.morphia.mapping.Mapper mockMapper = Mockito.mock(dev.morphia.mapping.Mapper.class);
+        Mockito.when(ds.getMapper()).thenReturn(mockMapper);
+        Mockito.when(mockMapper.getEntityModel(Mockito.any())).thenThrow(namespaceNotFound);
+
+        // Use a fresh collection mock to avoid interfering with other stubs
+        MongoCollection freshCollection = Mockito.mock(MongoCollection.class);
+        MongoNamespace freshNamespace = Mockito.mock(MongoNamespace.class);
+        Mockito.when(freshCollection.getNamespace()).thenReturn(freshNamespace);
+        Mockito.when(freshNamespace.getCollectionName()).thenReturn("ecallEvents");
+
+        Method m = testEcallDAOMongoImpl.getClass().getSuperclass()
+                .getDeclaredMethod("ensureIndexesWithRetryForEntityClass",
+                                   com.mongodb.client.MongoCollection.class);
+        m.setAccessible(true);
+
+        try {
+            m.invoke(testEcallDAOMongoImpl, freshCollection);
+            Assert.fail("Expected MongoCommandException after exhausting retries");
+        } catch (java.lang.reflect.InvocationTargetException ite) {
+            Assert.assertTrue(ite.getCause() instanceof MongoCommandException);
+            Assert.assertEquals(NumericConstants.TWENTY_SIX,
+                    ((MongoCommandException) ite.getCause()).getErrorCode());
+        }
+
+        // The retry path must have attempted collection creation at least once
+        Mockito.verify(mongoDatabase, Mockito.atLeastOnce()).createCollection("ecallEvents");
+    }
+
+    // -------------------------------------------------------------------------
+    // Static inner helpers: entities / DAOs used only in the new tests above
+    // -------------------------------------------------------------------------
+
+    /** Minimal entity with no {@code @Indexes} annotation. */
+    @dev.morphia.annotations.Entity
+    static class PlainEntity extends org.eclipse.ecsp.entities.AbstractIgniteEvent {
+        @dev.morphia.annotations.Id
+        private String id;
+
+        @Override
+        public List<org.eclipse.ecsp.entities.IgniteEvent> getNestedEvents() {
+            return null;
+        }
+    }
+
+    /** DAO for {@link PlainEntity}; routes to the "plainColl" override collection. */
+    static class NoIndexDAOImpl extends IgniteBaseDAOMongoImpl<String, PlainEntity> {
+        @Override
+        public String getOverridingCollectionName() {
+            return "plainColl";
+        }
+    }
+
+    /** Entity whose single {@code @Index} carries unique, sparse, and name options. */
+    @dev.morphia.annotations.Entity
+    @dev.morphia.annotations.Indexes(
+        @dev.morphia.annotations.Index(
+            fields = @dev.morphia.annotations.Field(value = "myField"),
+            options = @dev.morphia.annotations.IndexOptions(unique = true, sparse = true, name = "myIdx")
+        )
+    )
+    static class SpecialIndexEntity extends org.eclipse.ecsp.entities.AbstractIgniteEvent {
+        @dev.morphia.annotations.Id
+        private String id;
+
+        @Override
+        public List<org.eclipse.ecsp.entities.IgniteEvent> getNestedEvents() {
+            return null;
+        }
     }
 
 }

@@ -438,20 +438,29 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                             entityClass.getName());
                     continue;
                 }
-                IndexOptions indexOptions = new IndexOptions();
-                dev.morphia.annotations.IndexOptions opts = indexDef.options();
-                if (opts.unique()) {
-                    indexOptions.unique(true);
-                }
-                if (opts.sparse()) {
-                    indexOptions.sparse(true);
-                }
-                if (!opts.name().isEmpty()) {
-                    indexOptions.name(opts.name());
-                }
-                col.createIndex(keys, indexOptions);
+                col.createIndex(keys, buildIndexOptions(indexDef.options()));
             }
         }
+    }
+
+    /**
+     * Builds a MongoDB {@link IndexOptions} from a Morphia {@link dev.morphia.annotations.IndexOptions}.
+     *
+     * @param opts the Morphia index options
+     * @return the corresponding MongoDB IndexOptions
+     */
+    private IndexOptions buildIndexOptions(dev.morphia.annotations.IndexOptions opts) {
+        IndexOptions indexOptions = new IndexOptions();
+        if (opts.unique()) {
+            indexOptions.unique(true);
+        }
+        if (opts.sparse()) {
+            indexOptions.sparse(true);
+        }
+        if (!opts.name().isEmpty()) {
+            indexOptions.name(opts.name());
+        }
+        return indexOptions;
     }
 
     private MongoCollection<E> getEntityCollection() {
