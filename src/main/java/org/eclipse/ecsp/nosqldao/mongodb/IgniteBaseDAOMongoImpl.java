@@ -46,7 +46,6 @@ import com.mongodb.client.DistinctIterable;
 import com.mongodb.client.ListIndexesIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
@@ -55,8 +54,6 @@ import dev.morphia.DeleteOptions;
 import dev.morphia.InsertOneOptions;
 import dev.morphia.UpdateOptions;
 import dev.morphia.annotations.Id;
-import dev.morphia.annotations.Index;
-import dev.morphia.annotations.Indexes;
 import dev.morphia.annotations.internal.IndexHelper;
 import dev.morphia.mapping.codec.pojo.EntityModel;
 import dev.morphia.query.Query;
@@ -297,7 +294,9 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
             collection = getEntityCollection();
             ensureIndexesWithRetryForEntityClass(collection);
         } else {
-            createIndexesWithRetryForOverride(overridingCollection);
+            EntityModel model = mongoDatastore.getMapper().getEntityModel(entityClass);
+            IndexHelper indexHelper = new IndexHelper(mongoDatastore.getMapper());
+            createIndexesWithRetryForOverride(indexHelper, model, overridingCollection);
             if (diagnosticMongoReporterEnabled) {
                 collection = mongoDatastore.getDatabase().getCollection(overridingCollection);
             }
@@ -386,18 +385,26 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         String collectionName = collection.getNamespace().getCollectionName();
         ensureIndexesWithRetry(collectionName, () -> {
             EntityModel entityModel = mongoDatastore.getMapper().getEntityModel(entityClass);
-            new IndexHelper(mongoDatastore.getMapper()).createIndex(collection, entityModel);
+            if (entityModel.getIdProperty() != null) {
+                new IndexHelper(mongoDatastore.getMapper()).createIndex(collection, entityModel);
+            }
         });
     }
 
     /**
      * Ensure indexes for overriding collection with retry if collection isn't present yet.
      *
+     * @param indexHelper the Morphia IndexHelper
+     * @param model the EntityModel for the entity class
      * @param overridingCollection the name of the overriding collection
      */
-    private void createIndexesWithRetryForOverride(String overridingCollection) {
+    private void createIndexesWithRetryForOverride(IndexHelper indexHelper, EntityModel model,
+            String overridingCollection) {
         try {
-            ensureIndexesWithRetry(overridingCollection, () -> createIndexesForCollection(overridingCollection));
+            ensureIndexesWithRetry(
+                overridingCollection,
+                () -> indexHelper.createIndex(
+                    mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass), model));
         } catch (MongoCommandException mce) {
             int code = mce.getErrorCode();
             String errorMessage = mce.getErrorMessage();
@@ -415,52 +422,6 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                 throw mce;
             }
         }
-    }
-
-    /**
-     * Creates indexes for the given overriding collection based on @Index annotations on the entity class.
-     * Skips any index definitions with empty fields arrays.
-     *
-     * @param overridingCollection the name of the overriding collection
-     */
-    private void createIndexesForCollection(String overridingCollection) {
-        MongoCollection<E> col = mongoDatastore.getDatabase().getCollection(overridingCollection, entityClass);
-        Indexes indexesAnnotation = entityClass.getAnnotation(Indexes.class);
-        if (indexesAnnotation != null) {
-            for (Index indexDef : indexesAnnotation.value()) {
-                Document keys = new Document();
-                for (dev.morphia.annotations.Field field : indexDef.fields()) {
-                    keys.put(field.value(), field.type().toIndexValue());
-                }
-                if (keys.isEmpty()) {
-                    LOGGER.warn("Skipping index definition with no fields on entity class {}; "
-                            + "check @Index annotation for missing 'fields' attribute.",
-                            entityClass.getName());
-                    continue;
-                }
-                col.createIndex(keys, buildIndexOptions(indexDef.options()));
-            }
-        }
-    }
-
-    /**
-     * Builds a MongoDB {@link IndexOptions} from a Morphia {@link dev.morphia.annotations.IndexOptions}.
-     *
-     * @param opts the Morphia index options
-     * @return the corresponding MongoDB IndexOptions
-     */
-    private IndexOptions buildIndexOptions(dev.morphia.annotations.IndexOptions opts) {
-        IndexOptions indexOptions = new IndexOptions();
-        if (opts.unique()) {
-            indexOptions.unique(true);
-        }
-        if (opts.sparse()) {
-            indexOptions.sparse(true);
-        }
-        if (!opts.name().isEmpty()) {
-            indexOptions.name(opts.name());
-        }
-        return indexOptions;
     }
 
     private MongoCollection<E> getEntityCollection() {

@@ -219,13 +219,6 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
     protected String morphiaConverters;
 
     /**
-     * The name of the Morphia convention.
-     * The default value is null.
-     */
-    @Value("${morphia.convention:#{null}}")
-    protected String morphiaConventionName;
-
-    /**
      * Indicates if taggable read preference is enabled for MongoDB.
      * The default value is false.
      */
@@ -459,15 +452,6 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
 
             LOGGER.info("Building Morphia config. Property discovery enabled via FIELDS,"
                     + " with discriminator key as : {}", Constants.DISCRIMINATOR_KEY);
-            if (StringUtils.isNotEmpty(morphiaConventionName)) {
-                throw new IllegalStateException(
-                    "Property 'morphia.convention' (value: '" + morphiaConventionName
-                    + "') is no longer supported in Morphia 2.5.x. "
-                    + "Custom conventions must be registered via the Java ServiceLoader mechanism: "
-                    + "create a file 'META-INF/services/dev.morphia.mapping.conventions.MorphiaConvention' "
-                    + "listing your convention implementation class(es). "
-                    + "Remove 'morphia.convention' from your configuration after migrating.");
-            }
             this.morphiaConfig = new ManualMorphiaConfig()
                     .database(getDatastoreDbName())
                     .propertyDiscovery(MapperOptions.PropertyDiscovery.FIELDS)
@@ -619,16 +603,6 @@ public abstract class AbstractIgniteDAOMongoConfig implements HealthMonitor {
      * @return Datastore instance.
      */
     protected abstract Datastore getDatastore();
-
-    /**
-     * Maps the packages to the datastore.
-     * @param datastore Datastore instance.
-     */
-    @Deprecated(forRemoval = true)
-    protected void mapPackagesToDatastore(Datastore datastore) {
-        // Packages are now configured via MorphiaConfig.packages() at datastore creation time.
-        // This method is retained for API compatibility only.
-    }
 
     /**
      * Returns the health status of the MongoDB connection.

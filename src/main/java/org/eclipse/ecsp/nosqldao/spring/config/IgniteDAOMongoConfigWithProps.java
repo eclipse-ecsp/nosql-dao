@@ -135,17 +135,12 @@ public class IgniteDAOMongoConfigWithProps extends AbstractIgniteDAOMongoConfig 
      * @return true if the MongoDB client is healthy, false otherwise
      */
     @Override
-    @SuppressWarnings("removal")
     public boolean isHealthy(boolean forceToRecreateClient) {
 
         if (forceToRecreateClient && (!healthy || mongoClient == null)) {
-            MongoClient oldClient = mongoClient;
-            mongoClient = createMongoClient();
-            Datastore ads = Morphia.createDatastore(mongoClient, morphiaConfig);
+            Datastore ads = Morphia.createDatastore(createMongoClient(), morphiaConfig);
             peInvocationHandler.setDatastore(ads);
-            if (oldClient != null) {
-                oldClient.close();
-            }
+            setHealthy(true);
         }
         return healthy;
     }
