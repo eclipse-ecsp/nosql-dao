@@ -41,13 +41,13 @@
 package org.eclipse.ecsp.nosqldao.mongodb;
 
 import com.mongodb.client.model.geojson.Point;
-import dev.morphia.AdvancedDatastore;
-import dev.morphia.geo.PointBuilder;
+import com.mongodb.client.model.geojson.Position;
+import dev.morphia.Datastore;
 import dev.morphia.query.FindOptions;
 import dev.morphia.query.Query;
 import dev.morphia.query.Sort;
-import dev.morphia.query.experimental.filters.Filter;
-import dev.morphia.query.experimental.filters.Filters;
+import dev.morphia.query.filters.Filter;
+import dev.morphia.query.filters.Filters;
 import org.eclipse.ecsp.entities.IgniteEntity;
 import org.eclipse.ecsp.nosqldao.Coordinate;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
@@ -79,8 +79,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
     /**
      * Datastore.
      */
-    @SuppressWarnings("removal")
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     /**
      * List of elemMatch filters.
@@ -104,7 +103,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @param datastore   : AdvancedDatastore
      * @param entityClass : Class
      */
-    public QueryTranslatorMorphiaImpl(@SuppressWarnings("removal") AdvancedDatastore datastore, Class<E> entityClass) {
+    public QueryTranslatorMorphiaImpl(Datastore datastore, Class<E> entityClass) {
         this.entityClass = entityClass;
         this.datastore = datastore;
     }
@@ -116,7 +115,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @param collectionName : Optional
      * @return Query
      */
-    @SuppressWarnings("removal")
+    @SuppressWarnings("deprecation")
     @Override
     public Query<E> translate(IgniteQuery from, Optional<String> collectionName) {
         Query<E> query = null;
@@ -428,8 +427,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
                 break;
             case NEAR:
                 if (val instanceof Coordinate coordinates) {
-                    Point geoPoint = PointBuilder.pointBuilder().longitude(coordinates.getLongitude())
-                            .latitude(coordinates.getLatitude()).build().convert();
+                    Point geoPoint = new Point(new Position(coordinates.getLongitude(), coordinates.getLatitude()));
                     criteria = Filters.nearSphere(field, geoPoint).maxDistance(coordinates.getRadius())
                             .minDistance(0.0);
                     break;

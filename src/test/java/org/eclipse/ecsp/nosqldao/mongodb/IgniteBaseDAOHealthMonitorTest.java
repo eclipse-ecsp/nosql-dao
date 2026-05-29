@@ -40,7 +40,7 @@
 
 package org.eclipse.ecsp.nosqldao.mongodb;
 
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import org.eclipse.ecsp.nosqldao.ecall.ECallEvent;
 import org.eclipse.ecsp.nosqldao.ecall.EcallDAO;
 import org.eclipse.ecsp.nosqldao.spring.config.IgniteDAOMongoConfigWithProps;
@@ -76,7 +76,7 @@ public class IgniteBaseDAOHealthMonitorTest {
     private TestDAO dao;
 
     @Autowired
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     @Autowired
     private IgniteDAOMongoConfigWithProps igniteDAOMongoConfigWithProps;

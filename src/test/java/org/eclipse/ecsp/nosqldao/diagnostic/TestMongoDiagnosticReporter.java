@@ -40,7 +40,7 @@
 
 package org.eclipse.ecsp.nosqldao.diagnostic;
 
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import org.bson.codecs.configuration.CodecConfigurationException;
 import org.eclipse.ecsp.diagnostic.DiagnosticData;
 import org.eclipse.ecsp.diagnostic.DiagnosticResult;
@@ -83,7 +83,7 @@ public class TestMongoDiagnosticReporter {
     @Autowired
     private TestDAO dao;
     @Autowired
-    private AdvancedDatastore mockedDatastore;
+    private Datastore mockedDatastore;
 
     @Autowired
     private IgniteDAOMongoConfigWithProps igniteDAOMongoConfigWithProps;

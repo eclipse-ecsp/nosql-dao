@@ -49,16 +49,16 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import dev.morphia.DeleteOptions;
 import dev.morphia.InsertOneOptions;
 import dev.morphia.UpdateOptions;
 import dev.morphia.annotations.Id;
-import dev.morphia.annotations.builders.IndexHelper;
+import dev.morphia.annotations.internal.IndexHelper;
 import dev.morphia.mapping.codec.pojo.EntityModel;
 import dev.morphia.query.Query;
-import dev.morphia.query.experimental.filters.Filters;
-import dev.morphia.query.experimental.updates.UpdateOperator;
+import dev.morphia.query.filters.Filters;
+import dev.morphia.query.updates.UpdateOperator;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
@@ -146,9 +146,8 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
     /**
      * The Mongo datastore.
      */
-    @SuppressWarnings("removal")
     @Autowired
-    private AdvancedDatastore mongoDatastore;
+    private Datastore mongoDatastore;
 
     /**
      * The class type of the entity.
@@ -292,7 +291,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         updatesTranslator = new UpdatesTranslatorMorphiaImpl();
         String overridingCollection = getOverridingCollectionName();
         if (StringUtils.isEmpty(overridingCollection)) {
-            collection = mongoDatastore.getMapper().getCollection(entityClass);
+            collection = getEntityCollection();
             ensureIndexesWithRetryForEntityClass(collection);
         } else {
             EntityModel model = mongoDatastore.getMapper().getEntityModel(entityClass);
@@ -377,22 +376,30 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
 
     /**
      * Ensure indexes for entity class with retry if collection isn't present yet.
-     * Concurrency-safe ensure indexes with catch-and-retry if collection creation races across pods.
+     * Replicates the pre-Morphia-2.5.2 behaviour of ensureIndexes(entityClass) by using
+     * IndexHelper directly — the same internal logic DatastoreImpl.ensureIndexes(Class) uses.
+     * This avoids casting through the Spring proxy (which only exposes the Datastore interface)
+     * while still scoping index creation to this entity class only.
      */
     private void ensureIndexesWithRetryForEntityClass(@SuppressWarnings("rawtypes") MongoCollection collection) {
-        String collName = collection.getNamespace().getCollectionName();
-        ensureIndexesWithRetry(collName, () -> mongoDatastore.ensureIndexes(entityClass));
+        String collectionName = collection.getNamespace().getCollectionName();
+        ensureIndexesWithRetry(collectionName, () -> {
+            EntityModel entityModel = mongoDatastore.getMapper().getEntityModel(entityClass);
+            if (entityModel.getIdProperty() != null) {
+                new IndexHelper(mongoDatastore.getMapper()).createIndex(collection, entityModel);
+            }
+        });
     }
 
     /**
      * Ensure indexes for overriding collection with retry if collection isn't present yet.
      *
-     * @param indexHelper the index helper to create indexes
-     * @param model the entity model
+     * @param indexHelper the Morphia IndexHelper
+     * @param model the EntityModel for the entity class
      * @param overridingCollection the name of the overriding collection
      */
-    private void createIndexesWithRetryForOverride(IndexHelper indexHelper, 
-            EntityModel model, String overridingCollection) {
+    private void createIndexesWithRetryForOverride(IndexHelper indexHelper, EntityModel model,
+            String overridingCollection) {
         try {
             ensureIndexesWithRetry(
                 overridingCollection,
@@ -415,6 +422,10 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                 throw mce;
             }
         }
+    }
+
+    private MongoCollection<E> getEntityCollection() {
+        return mongoDatastore.getCollection(entityClass);
     }
 
     /**
@@ -539,7 +550,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     if (StringUtils.isNotEmpty(dynamicCollectionName)) {
                         collectionName = dynamicCollectionName;
                     } else {
-                        collectionName = mongoDatastore.getMapper().getCollection(entityClass)
+                        collectionName = getEntityCollection()
                                 .getNamespace().getCollectionName();
                     }
 
@@ -674,7 +685,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                         collection = mongoDatastore.getDatabase().getCollection(collectionName,
                                 entityClass);
                     } else {
-                        collection = mongoDatastore.getMapper().getCollection(entityClass);
+                        collection = getEntityCollection();
                     }
                     UpdateResult updateResult = collection.replaceOne(query.toDocument(), entity,
                             new ReplaceOptions().upsert(true));
@@ -1195,7 +1206,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     mongoCollection = mongoDatastore.getDatabase().getCollection(collection.get(),
                             entityClass);
                 } else {
-                    mongoCollection = mongoDatastore.getMapper().getCollection(entityClass);
+                    mongoCollection = getEntityCollection();
                 }
                 List<UpdateOperator> updateOperations = updatesTranslator.translate(updates,
                         collection);
@@ -1238,7 +1249,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     } else {
                         q = mongoDatastore.createQuery(entityClass).filter(Filters.eq(Constants
                                 .ID_FILTER_CONSTANT, id)).disableValidation();
-                        mongoCollection = mongoDatastore.getMapper().getCollection(entityClass);
+                        mongoCollection = getEntityCollection();
                     }
                     List<UpdateOperator> updateOperations = updatesTranslator.translate(updates,
                             Optional.ofNullable(collection));
@@ -1320,7 +1331,7 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                 if (StringUtils.isNotEmpty(collection)) {
                     throw new UnsupportedOperationException("Distinct is not supported for dynamic collection name.");
                 } else {
-                    MongoCollection<?> dbCollection = mongoDatastore.getMapper().getCollection(
+                    MongoCollection<?> dbCollection = mongoDatastore.getCollection(
                             entityClass);
                     Query<E> query = queryTranslator.translate(igniteQuery,
                             Optional.empty());
@@ -1511,11 +1522,13 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
                     insertOneOptions.getBypassDocumentValidation())
                     .upsert(true);
             var filter = new Document(Constants.ID_FILTER_CONSTANT, id);
-            insertOneOptions.prepare(collectionName).replaceOne(filter, entity, replaceOptions);
+            insertOneOptions.prepare(collectionName, mongoDatastore.getDatabase())
+                    .replaceOne(filter, entity, replaceOptions);
         } else {
             LOGGER.info("Inserting record in collection {}, entity : {}", collectionName,
                     entity.toString());
-            insertOneOptions.prepare(collectionName).insertOne(entity, insertOneOptions.getOptions()).getInsertedId();
+            insertOneOptions.prepare(collectionName, mongoDatastore.getDatabase())
+                    .insertOne(entity, insertOneOptions.getOptions()).getInsertedId();
         }
         updateEntityId(entity);
     }

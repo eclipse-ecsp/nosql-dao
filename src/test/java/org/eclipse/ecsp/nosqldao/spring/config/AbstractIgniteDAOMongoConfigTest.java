@@ -40,7 +40,18 @@
 
 package org.eclipse.ecsp.nosqldao.spring.config;
 
+import com.mongodb.MongoClientException;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoCommandException;
+import com.mongodb.MongoSocketException;
+import com.mongodb.ServerAddress;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoDatabase;
+import dev.morphia.Datastore;
+import org.bson.BsonDocument;
+import org.bson.BsonDouble;
+import org.bson.BsonInt32;
+import org.bson.BsonString;
 import org.eclipse.ecsp.nosqldao.NoSqlDatabaseType;
 import org.eclipse.ecsp.nosqldao.utils.NumericConstants;
 import org.junit.Assert;
@@ -48,8 +59,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -59,6 +74,8 @@ import static org.junit.Assert.assertThrows;
  * Test class for AbstractIgniteDAOMongoConfig.
  */
 public class AbstractIgniteDAOMongoConfigTest {
+
+    private static final int NON_CRITICAL_MONGO_ERROR_CODE = 99;
 
     @InjectMocks
     AbstractIgniteDAOMongoConfig igniteDAOMongoConfig = new IgniteDAOMongoConfigWithProps();
@@ -197,5 +214,212 @@ public class AbstractIgniteDAOMongoConfigTest {
         String name = (String) m.invoke(igniteDAOMongoConfig);
 
         assertEquals("docDb", name);
+    }
+
+    @Test
+    public void testIsHealthy_ReturnsFalseWithoutForce() {
+        AbstractIgniteDAOMongoConfig.setHealthy(false);
+        Assert.assertFalse(igniteDAOMongoConfig.isHealthy(false));
+    }
+
+    @Test
+    public void testIsHealthy_ReturnsTrueWithoutForce() {
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+        Assert.assertTrue(igniteDAOMongoConfig.isHealthy(false));
+    }
+
+    @Test
+    public void testIsHealthy_DoesNotRecreateWhenHealthyAndForced() throws Exception {
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        Field clientField = AbstractIgniteDAOMongoConfig.class.getDeclaredField("mongoClient");
+        clientField.setAccessible(true);
+        clientField.set(igniteDAOMongoConfig, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        boolean result = igniteDAOMongoConfig.isHealthy(true);
+
+        Assert.assertTrue(result);
+        Mockito.verify(mockClient, Mockito.never()).close();
+    }
+
+    /**
+     * Wires up the private peInvocationHandler in a fresh IgniteDAOMongoConfigWithProps with
+     * mock Datastore and MongoClient, then returns the handler for direct invocation.
+     */
+    private InvocationHandler getConfiguredHandler(AbstractIgniteDAOMongoConfig config,
+            Datastore mockDatastore, MongoClient mockClient) throws Exception {
+        Field clientField = AbstractIgniteDAOMongoConfig.class.getDeclaredField("mongoClient");
+        clientField.setAccessible(true);
+        clientField.set(config, mockClient);
+
+        Field handlerField = IgniteDAOMongoConfigWithProps.class.getDeclaredField("peInvocationHandler");
+        handlerField.setAccessible(true);
+        Object handler = handlerField.get(config);
+
+        Method setDs = handler.getClass().getDeclaredMethod("setDatastore", Datastore.class);
+        setDs.setAccessible(true);
+        setDs.invoke(handler, mockDatastore);
+
+        return (InvocationHandler) handler;
+    }
+
+    @Test
+    public void testProxyInvoke_SuccessSetsHealthyTrue() throws Throwable {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        MongoDatabase mockDb = Mockito.mock(MongoDatabase.class);
+        Mockito.when(mockDs.getDatabase()).thenReturn(mockDb);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(false);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        Object result = handler.invoke(null, getDbMethod, null);
+
+        Assert.assertTrue(AbstractIgniteDAOMongoConfig.healthy);
+        Assert.assertEquals(mockDb, result);
+    }
+
+    @Test
+    public void testProxyInvoke_MongoSocketExceptionSetsUnhealthy() throws Exception {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        MongoSocketException socketEx = new MongoSocketException("socket error", new ServerAddress());
+        Mockito.when(mockDs.getDatabase()).thenThrow(socketEx);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        try {
+            handler.invoke(null, getDbMethod, null);
+            Assert.fail("Expected MongoSocketException");
+        } catch (Throwable t) {
+            Assert.assertSame(socketEx, t);
+        }
+        Assert.assertFalse(AbstractIgniteDAOMongoConfig.healthy);
+    }
+
+    @Test
+    public void testProxyInvoke_MongoClientExceptionSetsUnhealthy() throws Exception {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        MongoClientException clientEx = new MongoClientException("client error");
+        Mockito.when(mockDs.getDatabase()).thenThrow(clientEx);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        try {
+            handler.invoke(null, getDbMethod, null);
+            Assert.fail("Expected MongoClientException");
+        } catch (Throwable t) {
+            Assert.assertSame(clientEx, t);
+        }
+        Assert.assertFalse(AbstractIgniteDAOMongoConfig.healthy);
+    }
+
+    @Test
+    public void testProxyInvoke_MongoCodeElevenSetsUnhealthy() throws Exception {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.ELEVEN))
+                .append("errmsg", new BsonString("UserNotFound"));
+        MongoCommandException ex = new MongoCommandException(response, new ServerAddress());
+        Mockito.when(mockDs.getDatabase()).thenThrow(ex);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        try {
+            handler.invoke(null, getDbMethod, null);
+            Assert.fail("Expected MongoCommandException");
+        } catch (Throwable t) {
+            Assert.assertSame(ex, t);
+        }
+        Assert.assertFalse(AbstractIgniteDAOMongoConfig.healthy);
+    }
+
+    @Test
+    public void testProxyInvoke_MongoCodeThirteenSetsUnhealthy() throws Exception {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.THIRTEEN))
+                .append("errmsg", new BsonString("Unauthorized"));
+        MongoCommandException ex = new MongoCommandException(response, new ServerAddress());
+        Mockito.when(mockDs.getDatabase()).thenThrow(ex);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        try {
+            handler.invoke(null, getDbMethod, null);
+            Assert.fail("Expected MongoCommandException");
+        } catch (Throwable t) {
+            Assert.assertSame(ex, t);
+        }
+        Assert.assertFalse(AbstractIgniteDAOMongoConfig.healthy);
+    }
+
+    @Test
+    public void testProxyInvoke_MongoCodeThirtyOneSetsUnhealthy() throws Exception {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NumericConstants.THIRTY_ONE))
+                .append("errmsg", new BsonString("CursorNotFound"));
+        MongoCommandException ex = new MongoCommandException(response, new ServerAddress());
+        Mockito.when(mockDs.getDatabase()).thenThrow(ex);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        try {
+            handler.invoke(null, getDbMethod, null);
+            Assert.fail("Expected MongoCommandException");
+        } catch (Throwable t) {
+            Assert.assertSame(ex, t);
+        }
+        Assert.assertFalse(AbstractIgniteDAOMongoConfig.healthy);
+    }
+
+    @Test
+    public void testProxyInvoke_NonCriticalMongoCodePreservesHealth() throws Exception {
+        IgniteDAOMongoConfigWithProps config = new IgniteDAOMongoConfigWithProps();
+        Datastore mockDs = Mockito.mock(Datastore.class);
+        MongoClient mockClient = Mockito.mock(MongoClient.class);
+        BsonDocument response = new BsonDocument()
+                .append("ok", new BsonDouble(0.0))
+                .append("code", new BsonInt32(NON_CRITICAL_MONGO_ERROR_CODE))
+                .append("errmsg", new BsonString("SomeOtherError"));
+        MongoCommandException ex = new MongoCommandException(response, new ServerAddress());
+        Mockito.when(mockDs.getDatabase()).thenThrow(ex);
+
+        InvocationHandler handler = getConfiguredHandler(config, mockDs, mockClient);
+        AbstractIgniteDAOMongoConfig.setHealthy(true);
+
+        Method getDbMethod = Datastore.class.getMethod("getDatabase");
+        try {
+            handler.invoke(null, getDbMethod, null);
+            Assert.fail("Expected MongoCommandException");
+        } catch (Throwable t) {
+            Assert.assertSame(ex, t);
+        }
+        Assert.assertTrue(AbstractIgniteDAOMongoConfig.healthy);
     }
 }
