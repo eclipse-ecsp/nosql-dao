@@ -40,9 +40,9 @@
 
 package org.eclipse.ecsp.nosqldao.mongodb;
 
-import dev.morphia.query.experimental.filters.Filters;
-import dev.morphia.query.experimental.updates.UpdateOperator;
-import dev.morphia.query.experimental.updates.UpdateOperators;
+import dev.morphia.query.filters.Filters;
+import dev.morphia.query.updates.UpdateOperator;
+import dev.morphia.query.updates.UpdateOperators;
 import org.eclipse.ecsp.nosqldao.Updates;
 import org.eclipse.ecsp.nosqldao.Updates.DecOp;
 import org.eclipse.ecsp.nosqldao.Updates.FieldSetOp;

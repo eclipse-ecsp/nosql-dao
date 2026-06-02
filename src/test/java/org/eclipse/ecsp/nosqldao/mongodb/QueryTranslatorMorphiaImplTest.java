@@ -40,7 +40,7 @@
 
 package org.eclipse.ecsp.nosqldao.mongodb;
 
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import dev.morphia.query.Query;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
 import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
@@ -79,28 +79,14 @@ public class QueryTranslatorMorphiaImplTest {
     private static final String SOURCEDEVICEID = "sourceDeviceId";
 
     @Autowired
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     private String customCollection = "customColl";
 
     @Test
     public void testSigleCriteriaQuery() {
         String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{" + VEHICLEID
-                + "=Vehicle1, className=Document{{$in=[org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
-        IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
-        IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1);
-        IgniteQuery igQuery = new IgniteQuery(cg1);
-        QueryTranslatorMorphiaImpl<ECallEvent> queryMorphia = new QueryTranslatorMorphiaImpl<>(
-                datastore, ECallEvent.class);
-        queryMorphia.init(new Properties());
-        Query<ECallEvent> query = queryMorphia.translate(igQuery, Optional.empty());
-        assertEquals("Actual query does not match with expected", expected, query.toString());
-    }
-
-    @Test
-    public void testSigleCriteriaQueryWithDynamicCollection() {
-        String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{" + VEHICLEID
-                + "=Vehicle1, className=Document{{$in=[org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "=Vehicle1}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1);
         IgniteQuery igQuery = new IgniteQuery(cg1);
@@ -113,8 +99,7 @@ public class QueryTranslatorMorphiaImplTest {
     @Test
     public void testSingleCriteriaGroupWithAndQuery() {
         String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{$and=[Document{{" + VEHICLEID
-                + "=Vehicle1}}, " + "Document{{" + SOURCEDEVICEID + "=Device1}}], "
-                + "className=Document{{$in=[org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "=Vehicle1}}, " + "Document{{" + SOURCEDEVICEID + "=Device1}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteria c2 = new IgniteCriteria(SOURCEDEVICEID, Operator.EQ, "Device1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1).and(c2);
@@ -128,8 +113,7 @@ public class QueryTranslatorMorphiaImplTest {
     @Test
     public void testSingleCriteriaGroupWithOrQuery() {
         String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{$or=[Document{{" + VEHICLEID
-                + "=Vehicle1}}," + " Document{{" + SOURCEDEVICEID + "=Device1}}], "
-                + "className=Document{{$in=[org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "=Vehicle1}}," + " Document{{" + SOURCEDEVICEID + "=Device1}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteria c2 = new IgniteCriteria(SOURCEDEVICEID, Operator.EQ, "Device1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1).or(c2);
@@ -145,8 +129,7 @@ public class QueryTranslatorMorphiaImplTest {
         String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{$or=[Document{{$and=[Document{{" + VEHICLEID
                 + "=Vehicle1}}, Document{{" + SOURCEDEVICEID + "=Device1}}]}}, "
                 + "Document{{$and=[Document{{eventId=Ecall}}, Document{{version=Document{{$lt=V1}}}}]}}, "
-                + "Document{{timestamp=Document{{$gt=100}}}}], className=Document{{$in="
-                + "[org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "Document{{timestamp=Document{{$gt=100}}}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteria c2 = new IgniteCriteria(SOURCEDEVICEID, Operator.EQ, "Device1");
         IgniteCriteria c3 = new IgniteCriteria("eventId", Operator.EQ, "Ecall");
@@ -167,8 +150,7 @@ public class QueryTranslatorMorphiaImplTest {
                 + "=Vehicle1}}, Document{{"
                 + SOURCEDEVICEID + "=Device1}}]}},"
                 + " Document{{$and=[Document{{" + VEHICLEID + "=Vehicle2}}, Document{{"
-                + SOURCEDEVICEID + "=Device2}}]}}], className=Document{{$in=["
-                + "org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + SOURCEDEVICEID + "=Device2}}]}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteria c2 = new IgniteCriteria(SOURCEDEVICEID, Operator.EQ, "Device1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1).and(c2);
@@ -190,8 +172,7 @@ public class QueryTranslatorMorphiaImplTest {
                 + VEHICLEID + "=Vehicle1}}, Document{{"
                 + SOURCEDEVICEID + "=Device1}}]}}, "
                 + "Document{{$and=[Document{{" + VEHICLEID + "=Vehicle2}}, Document{{"
-                + SOURCEDEVICEID + "=Device2}}]}}], className=Document{{$in=["
-                + "org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + SOURCEDEVICEID + "=Device2}}]}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteria c2 = new IgniteCriteria(SOURCEDEVICEID, Operator.EQ, "Device1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1).and(c2);
@@ -215,8 +196,7 @@ public class QueryTranslatorMorphiaImplTest {
                 + " Document{{" + SOURCEDEVICEID + "=Device1}}]}}, Document{{$and=[Document{{"
                 + VEHICLEID + "=Vehicle2}},"
                 + " Document{{" + SOURCEDEVICEID + "=Device2}}]}}]}}, Document{{$or=[Document{{version=V1}}, "
-                + "Document{{timestamp=100}}]}}], className=Document{{$in=["
-                + "org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "Document{{timestamp=100}}]}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteria c2 = new IgniteCriteria(SOURCEDEVICEID, Operator.EQ, "Device1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1).and(c2);
@@ -239,8 +219,7 @@ public class QueryTranslatorMorphiaImplTest {
     @Test
     public void testNotEqualsCriteriaQuery() {
         String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{" + VEHICLEID
-                + "=Document{{$ne=Vehicle1}}, className=Document{{"
-                + "$in=[org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "=Document{{$ne=Vehicle1}}}}]";
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.NEQ, "Vehicle1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1);
         IgniteQuery igQuery = new IgniteQuery(cg1);
@@ -259,8 +238,7 @@ public class QueryTranslatorMorphiaImplTest {
                 + VEHICLEID + "=Vehicle1}}, "
                 + "Document{{" + SOURCEDEVICEID + "=Document{{$elemMatch=Document{{$or=["
                 + "Document{{$and=[Document{{version=102}}, "
-                + "Document{{timestamp=Document{{$gt=100}}}}]}}]}}}}}}], className=Document{{$in=["
-                + "org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "Document{{timestamp=Document{{$gt=100}}}}]}}]}}}}}}]}}]";
 
         IgniteCriteria c1 = new IgniteCriteria(VEHICLEID, Operator.EQ, "Vehicle1");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1);
@@ -293,8 +271,7 @@ public class QueryTranslatorMorphiaImplTest {
 
         String expected = "MorphiaQuery[clazz=ECallEvent, query=Document{{$and=[Document{{zipcode=63109}},"
                 + " Document{{students=Document{{$elemMatch=Document{{$or=[Document{{$and=[Document{{school=102}},"
-                + " Document{{age=Document{{$gt=7}}}}]}}]}}}}}}], className=Document{{$in=["
-                + "org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + " Document{{age=Document{{$gt=7}}}}]}}]}}}}}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(ZIPCODE, Operator.EQ, "63109");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1);
 
@@ -329,8 +306,7 @@ public class QueryTranslatorMorphiaImplTest {
                 + "Document{{school=Document{{$lte=102}}}}, "
                 + "Document{{age=Document{{$gte=7}}}}]}}, "
                 + "Document{{$and=[Document{{subject=Document{{$in=[Physics, Biology]}}}}, "
-                + "Document{{subject=Document{{$nin=[Chemistry]}}}}]}}]}}}}}}], className=Document{{$in=["
-                + "org.eclipse.ecsp.nosqldao.ecall.ECallEvent]}}}}]";
+                + "Document{{subject=Document{{$nin=[Chemistry]}}}}]}}]}}}}}}]}}]";
         IgniteCriteria c1 = new IgniteCriteria(ZIPCODE, Operator.EQ, "63109");
         IgniteCriteriaGroup cg1 = new IgniteCriteriaGroup(c1);
 

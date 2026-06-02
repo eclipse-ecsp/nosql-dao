@@ -45,7 +45,7 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.ReadPreference;
 import com.mongodb.client.ListIndexesIterable;
 import com.mongodb.client.MongoCollection;
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import org.awaitility.Awaitility;
 import org.bson.Document;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
@@ -76,7 +76,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
-import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -110,7 +109,7 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
     private TestDAO dao;
 
     @Autowired
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     @Autowired
     private IgniteDAOMongoConfigWithProps igniteDAOMongoConfigWithProps;
@@ -1278,10 +1277,9 @@ public class IgniteBaseDAOCosmosDBIntegrationTest {
         ecallDao.deleteAll();
         List<ECallEvent> ecalls = new ArrayList<>();
         List<String> devices = new ArrayList<>();
-        SecureRandom random = new SecureRandom();
         for (int i = 0; i < NumericConstants.FIVE; i++) {
             ECallEvent ecall = new ECallEvent();
-            ecall.setEcallId("ECallId_OrderBy_" + random.nextInt(NumericConstants.HUNDRED));
+            ecall.setEcallId("ECallId_OrderBy_" + i);
             ecall.setSourceDeviceId(UUID.randomUUID().toString());
             ecall.setEventId("ECall");
             ecall.setRequestId("Request_" + i);

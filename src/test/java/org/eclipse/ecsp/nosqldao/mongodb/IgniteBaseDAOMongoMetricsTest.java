@@ -40,7 +40,7 @@
 
 package org.eclipse.ecsp.nosqldao.mongodb;
 
-import dev.morphia.AdvancedDatastore;
+import dev.morphia.Datastore;
 import io.prometheus.client.CollectorRegistry;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
 import org.eclipse.ecsp.nosqldao.IgniteCriteriaGroup;
@@ -83,7 +83,7 @@ public class IgniteBaseDAOMongoMetricsTest {
     private MockTestDAOMongoImpl mockDao;
 
     @Autowired
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     /** Setup method. */
     @Before

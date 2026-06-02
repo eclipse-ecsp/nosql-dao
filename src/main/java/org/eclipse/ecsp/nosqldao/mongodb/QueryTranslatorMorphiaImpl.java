@@ -41,13 +41,13 @@
 package org.eclipse.ecsp.nosqldao.mongodb;
 
 import com.mongodb.client.model.geojson.Point;
-import dev.morphia.AdvancedDatastore;
-import dev.morphia.geo.PointBuilder;
+import com.mongodb.client.model.geojson.Position;
+import dev.morphia.Datastore;
 import dev.morphia.query.FindOptions;
 import dev.morphia.query.Query;
 import dev.morphia.query.Sort;
-import dev.morphia.query.experimental.filters.Filter;
-import dev.morphia.query.experimental.filters.Filters;
+import dev.morphia.query.filters.Filter;
+import dev.morphia.query.filters.Filters;
 import org.eclipse.ecsp.entities.IgniteEntity;
 import org.eclipse.ecsp.nosqldao.Coordinate;
 import org.eclipse.ecsp.nosqldao.IgniteCriteria;
@@ -79,18 +79,17 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
     /**
      * Datastore.
      */
-    @SuppressWarnings("removal")
-    private AdvancedDatastore datastore;
+    private Datastore datastore;
 
     /**
      * List of elemMatch filters.
      */
-    private List<Filter> elemMatchFilterList = new ArrayList<>();
+    private final ThreadLocal<List<Filter>> elemMatchFilterList = ThreadLocal.withInitial(ArrayList::new);
 
     /**
      * Find options.
      */
-    private FindOptions findOptions = new FindOptions();
+    private final ThreadLocal<FindOptions> findOptions = ThreadLocal.withInitial(FindOptions::new);
 
     /**
      * Default constructor.
@@ -104,7 +103,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @param datastore   : AdvancedDatastore
      * @param entityClass : Class
      */
-    public QueryTranslatorMorphiaImpl(@SuppressWarnings("removal") AdvancedDatastore datastore, Class<E> entityClass) {
+    public QueryTranslatorMorphiaImpl(Datastore datastore, Class<E> entityClass) {
         this.entityClass = entityClass;
         this.datastore = datastore;
     }
@@ -116,7 +115,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @param collectionName : Optional
      * @return Query
      */
-    @SuppressWarnings("removal")
+    @SuppressWarnings("deprecation")
     @Override
     public Query<E> translate(IgniteQuery from, Optional<String> collectionName) {
         Query<E> query = null;
@@ -125,7 +124,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
         } else {
             query = datastore.createQuery(entityClass).disableValidation();
         }
-        elemMatchFilterList.clear();
+        elemMatchFilterList.get().clear();
         List<IgniteCriteriaGroup> igniteCriteriaGroups = from.getCriteriaGroups();
         LopContent lopContent = from.getLopContent();
         if (LopContent.MIXED.equals(lopContent)) {
@@ -136,7 +135,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
             createQueryForAndonlyLopContent(query, igniteCriteriaGroups);
         } else {
             Filter criteriaContainerFilter = createCriteriaContainer(igniteCriteriaGroups.get(0));
-            elemMatchFilterList.add(criteriaContainerFilter);
+            elemMatchFilterList.get().add(criteriaContainerFilter);
             query.filter(criteriaContainerFilter);
         }
 
@@ -167,7 +166,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
         for (IgniteCriteriaGroup igniteCriteriaGroup : igniteCriteriaGroups) {
             criteriaContainers.add(createCriteriaContainer(igniteCriteriaGroup));
         }
-        elemMatchFilterList.add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
+        elemMatchFilterList.get().add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
         query.filter(Filters.and(
                 criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
     }
@@ -183,7 +182,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
         for (IgniteCriteriaGroup igniteCriteriaGroup : igniteCriteriaGroups) {
             criteriaContainers.add(createCriteriaContainer(igniteCriteriaGroup));
         }
-        elemMatchFilterList.add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
+        elemMatchFilterList.get().add(Filters.or(criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
         query.filter(Filters.or(
                 criteriaContainers.toArray(new Filter[igniteCriteriaGroups.size()])));
     }
@@ -209,7 +208,7 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
                 criteriaList.add(Filters.and(andCriteriaList.toArray(new Filter[andCriteriaList.size()])));
             }
         }
-        elemMatchFilterList.add(Filters.or(criteriaList.toArray(new Filter[criteriaList.size()])));
+        elemMatchFilterList.get().add(Filters.or(criteriaList.toArray(new Filter[criteriaList.size()])));
         query.filter(Filters.or(criteriaList.toArray(new Filter[criteriaList.size()])));
         return query;
     }
@@ -423,13 +422,12 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
             case ELEMENT_MATCH:
                 // prepare morphia filter list
                 translate((IgniteQuery) val, Optional.empty());
-                criteria = Filters.elemMatch(field, elemMatchFilterList.toArray(
-                        new Filter[elemMatchFilterList.size()]));
+                criteria = Filters.elemMatch(field, elemMatchFilterList.get().toArray(
+                        new Filter[elemMatchFilterList.get().size()]));
                 break;
             case NEAR:
                 if (val instanceof Coordinate coordinates) {
-                    Point geoPoint = PointBuilder.pointBuilder().longitude(coordinates.getLongitude())
-                            .latitude(coordinates.getLatitude()).build().convert();
+                    Point geoPoint = new Point(new Position(coordinates.getLongitude(), coordinates.getLatitude()));
                     criteria = Filters.nearSphere(field, geoPoint).maxDistance(coordinates.getRadius())
                             .minDistance(0.0);
                     break;
@@ -449,10 +447,8 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @return FindOptions : FindOptions
      */
     public FindOptions getFindOptions() {
-        if (findOptions != null) {
-            return findOptions;
-        }
-        return new FindOptions();
+        FindOptions options = findOptions.get();
+        return options != null ? options : new FindOptions();
     }
 
     /**
@@ -461,6 +457,6 @@ public class QueryTranslatorMorphiaImpl<E extends IgniteEntity> implements Query
      * @param findOptions : FindOptions
      */
     private void setFindOptions(FindOptions findOptions) {
-        this.findOptions = findOptions;
+        this.findOptions.set(findOptions);
     }
 }
