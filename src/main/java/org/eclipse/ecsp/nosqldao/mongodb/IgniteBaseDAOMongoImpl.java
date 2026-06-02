@@ -1009,6 +1009,10 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
         while (clazz != null) {
             Field[] newEntityFields = clazz.getDeclaredFields();
             for (Field f : newEntityFields) {
+                // Skip static and final fields to avoid IllegalAccessException
+                if (Modifier.isStatic(f.getModifiers()) || Modifier.isFinal(f.getModifiers())) {
+                    continue;
+                }
                 f.setAccessible(true);
                 LOGGER.debug("Field: {} of class: {}", f.getName(), clazz.getCanonicalName());
                 try {
@@ -1112,7 +1116,17 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
             throws IllegalAccessException {
         Class<? extends Object> fieldType = field.getType();
         if (fieldType.isPrimitive()) {
-            return Double.parseDouble(field.get(entity).toString()) <= 0.0d;
+            // Boolean primitives should not be skipped
+            if (fieldType == boolean.class) {
+                return false;
+            }
+            // For numeric primitives, check if value is zero or negative
+            try {
+                return Double.parseDouble(field.get(entity).toString()) <= 0.0d;
+            } catch (NumberFormatException e) {
+                LOGGER.error("Exception while parsing primitive field value. Exception is: {}", e);
+                return false;
+            }
         }
         return false;
     }
@@ -1129,7 +1143,17 @@ public abstract class IgniteBaseDAOMongoImpl<K, E extends IgniteEntity> implemen
             throws IllegalAccessException {
         Class<? extends Object> fieldType = field.getType();
         if (fieldType.isPrimitive()) {
-            return Double.parseDouble(field.get(entity).toString()) <= 0.0d;
+            // Boolean primitives should not be skipped
+            if (fieldType == boolean.class) {
+                return false;
+            }
+            // For numeric primitives, check if value is zero or negative
+            try {
+                return Double.parseDouble(field.get(entity).toString()) <= 0.0d;
+            } catch (NumberFormatException e) {
+                LOGGER.error("Exception while parsing primitive field value. Exception is: {}", e);
+                return false;
+            }
         }
         return false;
     }
